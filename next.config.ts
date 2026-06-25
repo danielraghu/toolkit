@@ -6,11 +6,27 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  allowedDevOrigins: [
-    "https://preview-chat-7baa410a-ef36-4811-82a5-699a5c950b7e.space-z.ai",
-    "http://21.0.14.79:3000",
-    "http://21.0.14.79",
-  ],
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "*",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
