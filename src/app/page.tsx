@@ -199,8 +199,11 @@ export default function Home() {
         <footer className="border-t border-[#333333] bg-[#121212]/60 mt-auto">
           <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between text-xs text-[#606060]">
             <span>Copyright © Natural Eye Media</span>
-            <a href="#" className="hover:text-[#A0A0A0] underline underline-offset-2 transition-colors duration-200">Privacy Policy</a>
-            <span>Crafted By NEM</span>
+            <span>
+              <a href="#" className="hover:text-[#A0A0A0] transition-colors duration-200">Privacy Policy</a>
+              <span className="mx-3 text-[#333333]">|</span>
+              <span>Crafted By NEM</span>
+            </span>
           </div>
         </footer>
       </div>
