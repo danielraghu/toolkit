@@ -1,0 +1,10 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/fonts/google/route": "/api/fonts/google",
+  "/api/fonts/route": "/api/fonts",
+  "/api/resources/route": "/api/resources",
+  "/api/route": "/api",
+  "/api/seed/route": "/api/seed",
+  "/page": "/"
+}
