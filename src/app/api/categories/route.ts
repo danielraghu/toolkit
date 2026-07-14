@@ -66,11 +66,9 @@ export async function POST(req: NextRequest) {
 
     const trimmed = name.trim();
 
-    // Check for duplicates (case-insensitive)
+    // Check for duplicates
     const existing = await db.category.findFirst({
-      where: {
-        name: { equals: trimmed, mode: "insensitive" },
-      },
+      where: { name: trimmed },
     });
 
     if (existing) {
