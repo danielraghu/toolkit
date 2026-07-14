@@ -145,3 +145,26 @@ Stage Summary:
 - Full CRUD now operational — users can add, edit, delete, and favorite resources
 - Auto-seed ensures 24 initial resources are always present on first load
 - All verified end-to-end via browser automation
+
+---
+Task ID: 10
+Agent: Main
+Task: Deploy ToolKit with working CRUD to Render (https://toolkitv1.onrender.com)
+
+Work Log:
+- Updated package.json: build script now runs `prisma generate && next build`, start script runs `prisma db push --skip-generate && next start`
+- Pushed code to GitHub (git push after rebase)
+- Updated Render service via API: build command to `bun install && bun run build`, start command with inline `DATABASE_URL=file:./toolkit.db`
+- Multiple deploy attempts: npm-based builds failed (native module issues), bun-based builds succeeded
+- Root cause of original "not showing" issue: DATABASE_URL was set to `file:./db/custom.db` (non-existent directory on Render)
+- Fixed by using inline DATABASE_URL in start command pointing to project root
+- Verified all CRUD operations via API: POST (201), GET (24 resources), PUT (favorite toggle), DELETE
+- Verified full frontend via Agent Browser on live Render URL: page loads, Add Resource dialog works, resources appear, Delete from menu works
+- Auto-seed successfully populated 24 initial resources on first deploy
+
+Stage Summary:
+- App fully live at https://toolkitv1.onrender.com/ with working CRUD
+- SQLite database with auto-seed, data persists between spin-ups on Render
+- Build command: `bun install && bun run build`
+- Start command: `DATABASE_URL=file:./toolkit.db npx prisma db push --skip-generate && DATABASE_URL=file:./toolkit.db npx next start`
+- Note: data is ephemeral across redeploys (Render free tier limitation), auto-seed restores defaults
