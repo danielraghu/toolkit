@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "next-themes";
 import {
   Search,
   Plus,
@@ -14,26 +13,13 @@ import {
   Link2,
   Type,
   Upload,
-  ChevronDown,
-  Grid3X3,
-  List,
   Heart,
-  Bookmark,
-  Filter,
   Globe,
   FolderOpen,
   MoreHorizontal,
   Copy,
-  Check,
-  Download,
   Eye,
-  Package,
-  Info,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -50,8 +36,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -124,80 +108,57 @@ function getCategoryIcon(category: string) {
 function getCategoryColor(category: string) {
   switch (category) {
     case "Design":
-      return "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300";
+      return "badge-design";
     case "Assets":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300";
+      return "badge-assets";
     case "Development":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300";
+      return "badge-development";
     case "AI":
-      return "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300";
+      return "badge-ai";
     case "Productivity":
-      return "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300";
+      return "badge-productivity";
     case "Reference":
-      return "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300";
+      return "badge-reference";
     case "Typography":
-      return "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300";
+      return "badge-typography";
     default:
-      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+      return "badge-reference";
   }
 }
 
 // ===================== MAIN APP =====================
 
 export default function Home() {
-  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("resources");
 
   return (
     <TooltipProvider delayDuration={200}>
       <div className="min-h-screen flex flex-col bg-background text-foreground">
         {/* HEADER */}
-        <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#121212]/90 backdrop-blur-xl">
+          <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                <Package className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-lg font-bold tracking-tight">ToolKit</h1>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  >
-                    {theme === "dark" ? (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Toggle theme</TooltipContent>
-              </Tooltip>
+              <img src="/logo.svg" alt="ToolKit" className="w-9 h-9" />
+              <h1 className="text-lg font-bold tracking-tight text-white">ToolKit</h1>
             </div>
           </div>
         </header>
 
         {/* TAB BAR */}
-        <div className="border-b border-border/40 bg-background/60 backdrop-blur-sm">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+        <div className="border-b border-[#333333] bg-[#121212]/60">
+          <div className="max-w-[1200px] mx-auto px-6 py-3">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="bg-transparent h-12 p-0 gap-0">
+              <TabsList className="bg-[#333333] h-10 p-1 gap-1 rounded-full">
                 <TabsTrigger
                   value="resources"
-                  className="relative h-12 px-4 rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground transition-colors"
+                  className="h-8 px-4 rounded-full text-[14px] font-medium transition-all duration-200 data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-none text-[#A0A0A0] hover:text-[#FFFFFF]"
                 >
                   <Link2 className="w-4 h-4 mr-2" />
                   Resources
                 </TabsTrigger>
                 <TabsTrigger
                   value="fonts"
-                  className="relative h-12 px-4 rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground data-[state=active]:text-foreground transition-colors"
+                  className="h-8 px-4 rounded-full text-[14px] font-medium transition-all duration-200 data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-none text-[#A0A0A0] hover:text-[#FFFFFF]"
                 >
                   <Type className="w-4 h-4 mr-2" />
                   Fonts
@@ -235,8 +196,8 @@ export default function Home() {
         </main>
 
         {/* FOOTER */}
-        <footer className="border-t border-border/40 bg-background/60 backdrop-blur-sm mt-auto">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-muted-foreground">
+        <footer className="border-t border-[#333333] bg-[#121212]/60 mt-auto">
+          <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between text-xs text-[#606060]">
             <span>ToolKit — Resources & Fonts Hub</span>
             <span>Built with Next.js & shadcn/ui</span>
           </div>
@@ -380,43 +341,47 @@ function ResourcesSection() {
   const allCategories = ["All", ...categories];
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-[1200px] mx-auto px-6 py-8">
       {/* TOP BAR */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Resource Library</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Resource Library</h2>
+          <p className="text-[14px] text-[#A0A0A0] mt-1" style={{ lineHeight: 1.5 }}>
             {resources.length} resources in your collection
           </p>
         </div>
-        <Button onClick={openAdd} className="gap-2">
+        <button
+          onClick={openAdd}
+          className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+        >
           <Plus className="w-4 h-4" />
           Add Resource
-        </Button>
+        </button>
       </div>
 
       {/* SEARCH & FILTERS */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#606060]" />
+          <input
             placeholder="Search resources..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10"
+            className="w-full pl-12 pr-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
           />
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={showFavorites ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowFavorites(!showFavorites)}
-            className="gap-1.5 h-10"
-          >
-            <Heart className={`w-3.5 h-3.5 ${showFavorites ? "fill-current" : ""}`} />
-            Favorites
-          </Button>
-        </div>
+        <button
+          variant={showFavorites ? "default" : "outline"}
+          onClick={() => setShowFavorites(!showFavorites)}
+          className={`inline-flex items-center gap-1.5 px-4 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+            showFavorites
+              ? "bg-[#FF6B35] text-white"
+              : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
+          }`}
+        >
+          <Heart className={`w-4 h-4 ${showFavorites ? "fill-current" : ""}`} />
+          Favorites
+        </button>
       </div>
 
       {/* CATEGORY FILTERS */}
@@ -425,10 +390,10 @@ function ResourcesSection() {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 ${
               activeCategory === cat
-                ? "bg-foreground text-background"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                ? "bg-[#FF6B35] text-white"
+                : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
             }`}
           >
             {cat !== "All" && <span className="text-xs">{getCategoryIcon(cat)}</span>}
@@ -439,34 +404,32 @@ function ResourcesSection() {
 
       {/* GRID */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-3">
-                  <Skeleton className="w-10 h-10 rounded-lg" />
-                  <div className="flex-1">
-                    <Skeleton className="h-5 w-24 mb-2" />
-                    <Skeleton className="h-3 w-full mb-1" />
-                    <Skeleton className="h-3 w-3/4" />
-                  </div>
+            <div key={i} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5">
+              <div className="flex items-start gap-3">
+                <Skeleton className="w-10 h-10 rounded-lg bg-[#333333]" />
+                <div className="flex-1">
+                  <Skeleton className="h-5 w-24 mb-2 bg-[#333333]" />
+                  <Skeleton className="h-3 w-full mb-1 bg-[#333333]" />
+                  <Skeleton className="h-3 w-3/4 bg-[#333333]" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       ) : resources.length === 0 ? (
         <div className="text-center py-20">
-          <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-medium mb-1">No resources found</h3>
-          <p className="text-sm text-muted-foreground">
+          <FolderOpen className="w-12 h-12 mx-auto text-[#606060] mb-4" />
+          <h3 className="text-[18px] font-semibold text-white mb-1">No resources found</h3>
+          <p className="text-[14px] text-[#A0A0A0]">
             {showFavorites
               ? "You haven't favorited any resources yet"
               : "Try adjusting your search or filters"}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {resources.map((r) => (
             <ResourceCard
               key={r.id}
@@ -481,46 +444,49 @@ function ResourcesSection() {
 
       {/* ADD/EDIT DIALOG */}
       <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
           <DialogHeader>
-            <DialogTitle>{editItem ? "Edit Resource" : "Add Resource"}</DialogTitle>
+            <DialogTitle className="text-white">{editItem ? "Edit Resource" : "Add Resource"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Title *</label>
-              <Input
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Title *</label>
+              <input
                 placeholder="e.g. Figma"
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">URL *</label>
-              <Input
+              <label className="text-[14px] font-medium text-[#A0A0A0]">URL *</label>
+              <input
                 placeholder="https://example.com"
                 value={formUrl}
                 onChange={(e) => setFormUrl(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Textarea
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Description</label>
+              <textarea
                 placeholder="Brief description of this resource..."
                 value={formDesc}
                 onChange={(e) => setFormDesc(e.target.value)}
                 rows={2}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 resize-none"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Category</label>
               <Select value={formCategory} onValueChange={setFormCategory}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full bg-[#2A2A2A] border-[#333333] text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1E1E1E] border-[#333333]">
                   {["Design", "Assets", "Development", "AI", "Productivity", "Reference", "Typography", "General"].map(
                     (c) => (
-                      <SelectItem key={c} value={c}>
+                      <SelectItem key={c} value={c} className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">
                         {getCategoryIcon(c)} {c}
                       </SelectItem>
                     )
@@ -529,20 +495,27 @@ function ResourcesSection() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tags</label>
-              <Input
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Tags</label>
+              <input
                 placeholder="design, ui, free (comma separated)"
                 value={formTags}
                 onChange={(e) => setFormTags(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>
+              <button
+                onClick={() => { setDialogOpen(false); resetForm(); }}
+                className="px-5 py-3 bg-[#333333] hover:bg-[#444444] text-white rounded-lg text-[14px] font-medium transition-all duration-200"
+              >
                 Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+              >
                 {editItem ? "Save Changes" : "Add Resource"}
-              </Button>
+              </button>
             </div>
           </div>
         </DialogContent>
@@ -589,116 +562,115 @@ function ResourceCard({
       transition={{ duration: 0.2 }}
       className="h-full"
     >
-      <Card className="group overflow-hidden hover:shadow-md transition-all duration-200 hover:border-foreground/20 h-full flex flex-col">
-        <CardContent className="p-4 flex flex-col flex-1">
-          <div className="flex items-start gap-3 flex-1">
-            {/* FAVICON */}
-            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {resource.faviconUrl ? (
-                <img
-                  src={resource.faviconUrl}
-                  alt=""
-                  className="w-6 h-6"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-lg">${getCategoryIcon(resource.category)}</span>`;
-                  }}
+      <div
+        className="group bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 h-full flex flex-col transition-all duration-200 hover:border-[#444444] hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)]"
+      >
+        <div className="flex items-start gap-3 flex-1">
+          {/* FAVICON */}
+          <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {resource.faviconUrl ? (
+              <img
+                src={resource.faviconUrl}
+                alt=""
+                className="w-6 h-6"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                  (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-lg">${getCategoryIcon(resource.category)}</span>`;
+                }}
+              />
+            ) : (
+              <span className="text-lg">{getCategoryIcon(resource.category)}</span>
+            )}
+          </div>
+
+          {/* CONTENT */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="font-semibold text-[14px] text-white truncate">{resource.title}</h3>
+              <button
+                onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+                className="flex-shrink-0"
+              >
+                <Star
+                  className={`w-3.5 h-3.5 transition-colors ${
+                    resource.isFavorite
+                      ? "fill-[#FFD700] text-[#FFD700]"
+                      : "text-[#606060] hover:text-[#FFD700]"
+                  }`}
                 />
-              ) : (
-                <span className="text-lg">{getCategoryIcon(resource.category)}</span>
-              )}
+              </button>
             </div>
-
-            {/* CONTENT */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="font-semibold text-sm truncate">{resource.title}</h3>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onFavorite(); }}
-                  className="flex-shrink-0"
-                >
-                  <Star
-                    className={`w-3.5 h-3.5 transition-colors ${
-                      resource.isFavorite
-                        ? "fill-amber-400 text-amber-400"
-                        : "text-muted-foreground/40 hover:text-amber-400"
-                    }`}
-                  />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">{hostname}</p>
-              <p className="text-xs text-muted-foreground/80 line-clamp-2 mb-2 min-h-[2.5rem]">
-                {resource.description || "\u00A0"}
-              </p>
-              <div className="flex items-center gap-2 overflow-hidden">
-                <Badge
-                  variant="secondary"
-                  className={`text-[10px] px-2 py-0 h-5 font-medium shrink-0 ${getCategoryColor(resource.category)}`}
-                >
-                  {resource.category}
-                </Badge>
-                {resource.tags &&
-                  resource.tags.split(",").slice(0, 2).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] text-muted-foreground/60 truncate"
-                    >
-                      #{tag.trim()}
-                    </span>
-                  ))}
-              </div>
-            </div>
-
-            {/* ACTIONS */}
-            <div className="flex items-center gap-1 flex-shrink-0" ref={menuRef}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+            <p className="text-[12px] text-[#00BFFF] mb-2">{hostname}</p>
+            <p className="text-[12px] text-[#A0A0A0] line-clamp-2 mb-2 min-h-[2.5rem]">
+              {resource.description || "\u00A0"}
+            </p>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span
+                className={`ds-badge text-[10px] px-3 py-1 ${getCategoryColor(resource.category)}`}
+              >
+                {resource.category}
+              </span>
+              {resource.tags &&
+                resource.tags.split(",").slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] text-[#606060] truncate"
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent>Visit site</TooltipContent>
-              </Tooltip>
-              <div className="relative">
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="p-1.5 rounded-md hover:bg-secondary transition-colors"
-                >
-                  <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
-                </button>
-                <AnimatePresence>
-                  {showMenu && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="absolute right-0 top-full mt-1 w-36 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 overflow-hidden"
-                    >
-                      <button
-                        onClick={() => { setShowMenu(false); onEdit(); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-secondary transition-colors text-left"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
-                        onClick={() => { setShowMenu(false); onDelete(); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-destructive/10 text-destructive transition-colors text-left"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Delete
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                    #{tag.trim()}
+                  </span>
+                ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* ACTIONS */}
+          <div className="flex items-center gap-1 flex-shrink-0" ref={menuRef}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4 text-[#A0A0A0]" />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Visit site</TooltipContent>
+            </Tooltip>
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"
+              >
+                <MoreHorizontal className="w-4 h-4 text-[#A0A0A0]" />
+              </button>
+              <AnimatePresence>
+                {showMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute right-0 top-full mt-1 w-36 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-[0_8px_16px_rgba(0,0,0,0.2)] z-50 py-1 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => { setShowMenu(false); onEdit(); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[14px] hover:bg-[#2A2A2A] transition-colors text-left text-[#A0A0A0] hover:text-white"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => { setShowMenu(false); onDelete(); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[14px] hover:bg-red-500/10 text-red-400 transition-colors text-left"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -910,42 +882,45 @@ function FontsSection() {
   ).size;
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-[1200px] mx-auto px-6 py-8">
       {/* TOP BAR */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Font Library</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Font Library</h2>
+          <p className="text-[14px] text-[#A0A0A0] mt-1" style={{ lineHeight: 1.5 }}>
             {fonts.length} fonts in your collection
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
+          <button
             onClick={() => setShowGoogleBrowser(!showGoogleBrowser)}
-            className="gap-2"
+            className={`inline-flex items-center gap-2 px-4 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+              showGoogleBrowser
+                ? "bg-[#FF6B35] text-white"
+                : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
+            }`}
           >
             <Globe className="w-4 h-4" />
             Browse Google Fonts
-          </Button>
+          </button>
           <Dialog open={showUpload} onOpenChange={setShowUpload}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
+              <button className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200">
                 <Upload className="w-4 h-4" />
                 Upload Font
-              </Button>
+              </button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[420px]">
+            <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
               <DialogHeader>
-                <DialogTitle>Upload Custom Font</DialogTitle>
+                <DialogTitle className="text-white">Upload Custom Font</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-2">
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">
+                <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center">
+                  <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+                  <p className="text-[14px] text-[#A0A0A0] mb-3">
                     Upload .ttf or .otf file
                   </p>
-                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-secondary rounded-md text-sm font-medium cursor-pointer hover:bg-secondary/80 transition-colors">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[14px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
                     Choose File
                     <input
                       type="file"
@@ -956,19 +931,21 @@ function FontsSection() {
                   </label>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Display Name</label>
-                  <Input
+                  <label className="text-[14px] font-medium text-[#A0A0A0]">Display Name</label>
+                  <input
                     placeholder="e.g. My Custom Font"
                     value={uploadName}
                     onChange={(e) => setUploadName(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">CSS Font Family</label>
-                  <Input
+                  <label className="text-[14px] font-medium text-[#A0A0A0]">CSS Font Family</label>
+                  <input
                     placeholder="e.g. MyCustomFont"
                     value={uploadFamily}
                     onChange={(e) => setUploadFamily(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
                   />
                 </div>
               </div>
@@ -987,29 +964,27 @@ function FontsSection() {
             transition={{ duration: 0.3 }}
             className="overflow-hidden mb-6"
           >
-            <Card>
-              <CardContent className="p-4">
+            <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-[#333333]">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Browse Google Fonts</h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
+                  <h3 className="font-semibold text-white">Browse Google Fonts</h3>
+                  <button
                     onClick={() => setShowGoogleBrowser(false)}
+                    className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors text-[#A0A0A0]"
                   >
                     <X className="w-4 h-4" />
-                  </Button>
+                  </button>
                 </div>
                 <div className="relative mb-4">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+                  <input
                     placeholder="Search Google Fonts..."
                     value={googleSearch}
                     onChange={(e) => {
                       setGoogleSearch(e.target.value);
                       fetchGoogleFonts(e.target.value);
                     }}
-                    className="pl-9"
+                    className="w-full pl-11 pr-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
                   />
                 </div>
                 <ScrollArea className="h-72">
@@ -1018,15 +993,15 @@ function FontsSection() {
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className="flex items-center justify-between p-3">
                           <div>
-                            <Skeleton className="h-5 w-40 mb-2" />
-                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-5 w-40 mb-2 bg-[#333333]" />
+                            <Skeleton className="h-3 w-24 bg-[#333333]" />
                           </div>
-                          <Skeleton className="h-8 w-20" />
+                          <Skeleton className="h-8 w-20 bg-[#333333]" />
                         </div>
                       ))}
                     </div>
                   ) : googleFonts.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
+                    <div className="text-center py-8 text-[#606060] text-[14px]">
                       No fonts found
                     </div>
                   ) : (
@@ -1034,38 +1009,36 @@ function FontsSection() {
                       {googleFonts.map((gf) => (
                         <div
                           key={gf.family}
-                          className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary transition-colors"
+                          className="flex items-center justify-between p-3 rounded-lg hover:bg-[#2A2A2A] transition-colors"
                         >
                           <div>
                             <p
-                              className="text-lg font-medium"
+                              className="text-[18px] font-medium text-white"
                               style={{
                                 fontFamily: `'${gf.family}', sans-serif`,
                               }}
                             >
                               {gf.family}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-[12px] text-[#606060] mt-0.5">
                               {gf.category} · {JSON.parse(gf.variants).length}{" "}
                               variants
                             </p>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
+                          <button
                             onClick={() => addGoogleFont(gf)}
-                            className="flex-shrink-0"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[12px] font-medium transition-all duration-200 flex-shrink-0"
                           >
-                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            <Plus className="w-3.5 h-3.5" />
                             Add
-                          </Button>
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
                 </ScrollArea>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1073,22 +1046,22 @@ function FontsSection() {
       {/* SEARCH & FILTER */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#606060]" />
+          <input
             placeholder="Search fonts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10"
+            className="w-full pl-12 pr-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
           />
         </div>
         <Select value={filterSource} onValueChange={setFilterSource}>
-          <SelectTrigger className="w-36 h-10">
+          <SelectTrigger className="w-36 py-3 bg-[#2A2A2A] border-[#333333] text-[#A0A0A0] rounded-lg">
             <SelectValue placeholder="Source" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All Sources</SelectItem>
-            <SelectItem value="google">Google Fonts</SelectItem>
-            <SelectItem value="custom">Uploaded</SelectItem>
+          <SelectContent className="bg-[#1E1E1E] border-[#333333]">
+            <SelectItem value="All" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">All Sources</SelectItem>
+            <SelectItem value="google" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">Google Fonts</SelectItem>
+            <SelectItem value="custom" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">Uploaded</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1097,9 +1070,9 @@ function FontsSection() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* FONT LIST */}
         <div className="lg:w-80 flex-shrink-0">
-          <div className="border border-border/60 rounded-xl overflow-hidden">
-            <div className="p-3 border-b border-border/40 bg-secondary/30">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="border border-[#333333] rounded-xl overflow-hidden bg-[#1E1E1E]">
+            <div className="p-3 border-b border-[#333333] bg-[#1A1A1A]">
+              <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">
                 Your Fonts
               </p>
             </div>
@@ -1108,19 +1081,19 @@ function FontsSection() {
                 <div className="p-3 space-y-2">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-3 p-2">
-                      <Skeleton className="w-8 h-8 rounded" />
+                      <Skeleton className="w-8 h-8 rounded bg-[#333333]" />
                       <div className="flex-1">
-                        <Skeleton className="h-4 w-28 mb-1" />
-                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-4 w-28 mb-1 bg-[#333333]" />
+                        <Skeleton className="h-3 w-16 bg-[#333333]" />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : fonts.length === 0 ? (
                 <div className="text-center py-12 px-4">
-                  <Type className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
-                  <p className="text-sm text-muted-foreground">No fonts yet</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">
+                  <Type className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+                  <p className="text-[14px] text-[#A0A0A0]">No fonts yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">
                     Browse Google Fonts or upload your own
                   </p>
                 </div>
@@ -1130,12 +1103,12 @@ function FontsSection() {
                     <button
                       key={f.id}
                       onClick={() => setSelectedFont(f)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/50 transition-colors border-b border-border/20 last:border-b-0 ${
-                        selectedFont?.id === f.id ? "bg-secondary" : ""
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#333333]/40 last:border-b-0 ${
+                        selectedFont?.id === f.id ? "bg-[#2A2A2A]" : "hover:bg-[#2A2A2A]/60"
                       }`}
                     >
                       <div
-                        className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-lg flex-shrink-0"
+                        className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-lg flex-shrink-0 text-white"
                         style={{
                           fontFamily: `'${f.family}', sans-serif`,
                         }}
@@ -1143,15 +1116,15 @@ function FontsSection() {
                         Aa
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{f.name}</p>
+                        <p className="text-[14px] font-medium truncate text-white">{f.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-muted-foreground capitalize">
+                          <span className="text-[10px] text-[#606060] capitalize">
                             {f.source}
                           </span>
-                          <span className="text-[10px] text-muted-foreground/50">
+                          <span className="text-[10px] text-[#606060]/50">
                             ·
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-[10px] text-[#606060]">
                             {(() => {
                               try {
                                 return JSON.parse(f.variants).length;
@@ -1168,10 +1141,9 @@ function FontsSection() {
                           e.stopPropagation();
                           handleDeleteFont(f.id);
                         }}
-                        className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-all"
-                        style={{ opacity: undefined }}
+                        className="p-1 rounded hover:bg-red-500/10 transition-all"
                       >
-                        <Trash2 className="w-3 h-3 text-muted-foreground/40 hover:text-destructive" />
+                        <Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" />
                       </button>
                     </button>
                   ))}
@@ -1184,25 +1156,25 @@ function FontsSection() {
         {/* PREVIEW PANEL */}
         <div className="flex-1 min-w-0">
           {!selectedFont ? (
-            <div className="border border-border/60 rounded-xl h-[calc(100vh-380px)] min-h-[300px] flex items-center justify-center">
+            <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] h-[calc(100vh-380px)] min-h-[300px] flex items-center justify-center">
               <div className="text-center px-4">
-                <Eye className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
-                <h3 className="text-lg font-medium text-muted-foreground">
+                <Eye className="w-12 h-12 mx-auto text-[#606060] mb-4" />
+                <h3 className="text-[18px] font-medium text-[#A0A0A0]">
                   Select a font to preview
                 </h3>
-                <p className="text-sm text-muted-foreground/60 mt-1">
+                <p className="text-[14px] text-[#606060] mt-1">
                   Choose a font from the list to see how it looks
                 </p>
               </div>
             </div>
           ) : (
-            <div className="border border-border/60 rounded-xl overflow-hidden">
+            <div className="border border-[#333333] rounded-xl overflow-hidden bg-[#1E1E1E]">
               {/* FONT HEADER */}
-              <div className="p-5 border-b border-border/40 bg-secondary/30">
+              <div className="p-5 border-b border-[#333333] bg-[#1A1A1A]">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3
-                      className="text-2xl font-bold"
+                      className="text-[24px] font-bold text-white"
                       style={{
                         fontFamily: `'${selectedFont.family}', sans-serif`,
                       }}
@@ -1210,10 +1182,10 @@ function FontsSection() {
                       {selectedFont.name}
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="text-[10px] capitalize">
+                      <span className="ds-badge text-[10px] px-3 py-1 bg-[#333333] text-[#A0A0A0] capitalize">
                         {selectedFont.source}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
+                      </span>
+                      <span className="text-[12px] text-[#606060]">
                         {variantCount} variant{variantCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -1227,9 +1199,9 @@ function FontsSection() {
                           );
                           toast.success("CSS copied to clipboard!");
                         }}
-                        className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                        className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"
                       >
-                        <Copy className="w-4 h-4 text-muted-foreground" />
+                        <Copy className="w-4 h-4 text-[#A0A0A0]" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Copy CSS</TooltipContent>
@@ -1241,7 +1213,7 @@ function FontsSection() {
                   {uniqueWeights.map((w) => (
                     <span
                       key={w}
-                      className="inline-flex items-center px-2 py-0.5 rounded-md bg-background border border-border text-[10px] font-medium text-muted-foreground"
+                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-[#2A2A2A] border border-[#333333] text-[10px] font-medium text-[#A0A0A0]"
                     >
                       {(() => {
                         const labels: Record<number, string> = {
@@ -1263,28 +1235,28 @@ function FontsSection() {
               </div>
 
               {/* PREVIEW CONTROLS */}
-              <div className="p-4 border-b border-border/40 flex flex-col sm:flex-row gap-3">
+              <div className="p-4 border-b border-[#333333] flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Input
+                  <input
                     placeholder="Type your own preview text..."
                     value={previewText}
                     onChange={(e) => setPreviewText(e.target.value)}
-                    className="h-9 text-sm"
+                    className="w-full px-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="text-[12px] text-[#606060] whitespace-nowrap">
                     Size
                   </span>
-                  <Input
+                  <input
                     type="number"
                     value={previewSize}
                     onChange={(e) => setPreviewSize(parseInt(e.target.value) || 16)}
-                    className="w-16 h-9 text-sm text-center"
+                    className="w-16 px-3 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white text-center outline-none focus:border-[#FF6B35] transition-colors duration-200"
                     min={8}
                     max={200}
                   />
-                  <span className="text-xs text-muted-foreground">px</span>
+                  <span className="text-[12px] text-[#606060]">px</span>
                 </div>
               </div>
 
@@ -1312,17 +1284,17 @@ function FontsSection() {
                     return (
                       <div key={w}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <span className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">
                             {label} ({w})
                           </span>
                           {hasItalic && (
-                            <span className="text-[10px] text-muted-foreground/50">
+                            <span className="text-[10px] text-[#606060]/60">
                               · Italic available
                             </span>
                           )}
                         </div>
                         <p
-                          className="leading-tight break-words text-foreground/90"
+                          className="leading-tight break-words text-[#FFFFFF]/90"
                           style={{
                             fontFamily: `'${selectedFont.family}', sans-serif`,
                             fontWeight: w,
@@ -1333,7 +1305,7 @@ function FontsSection() {
                         </p>
                         {hasItalic && (
                           <p
-                            className="leading-tight break-words text-foreground/70 mt-1"
+                            className="leading-tight break-words text-[#FFFFFF]/70 mt-1"
                             style={{
                               fontFamily: `'${selectedFont.family}', sans-serif`,
                               fontWeight: w,
@@ -1350,11 +1322,11 @@ function FontsSection() {
 
                   {/* ALPHABET PREVIEW */}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">
                       Alphabet & Numbers
                     </p>
                     <p
-                      className="text-2xl leading-relaxed break-words text-foreground/80"
+                      className="text-2xl leading-relaxed break-words text-[#FFFFFF]/80"
                       style={{
                         fontFamily: `'${selectedFont.family}', sans-serif`,
                         fontWeight: 400,
@@ -1372,11 +1344,11 @@ function FontsSection() {
 
                   {/* PARAGRAPH PREVIEW */}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                    <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">
                       Paragraph
                     </p>
                     <p
-                      className="text-base leading-relaxed text-foreground/70"
+                      className="text-base leading-relaxed text-[#FFFFFF]/70"
                       style={{
                         fontFamily: `'${selectedFont.family}', sans-serif`,
                         fontWeight: 400,

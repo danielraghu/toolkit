@@ -93,4 +93,35 @@ Work Log:
 
 Stage Summary:
 - App is fully functional and verified via server logs
-- Preview panel successfully loads page and API data
+- Preview panel successfully loads page and API data---
+Task ID: 1
+Agent: Main Agent
+Task: Apply Figma design system to ToolKit app (dark-first redesign with logo)
+
+Work Log:
+- Analyzed Figma design screenshot with VLM to extract complete design tokens
+- Copied user's logo.svg to /public/logo.svg
+- Updated layout.tsx: switched from Geist to Inter font, set dark-only theme, added logo favicon
+- Rewrote globals.css with design system: dark background #121212, cards #1E1E1E, borders #333333, accent orange #FF6B35
+- Added CSS utility classes (ds-card, ds-badge, ds-input, ds-btn-primary/secondary)
+- Added category badge color classes (badge-design pink, badge-assets yellow, badge-development green, etc.)
+- Redesigned header: logo SVG, dark bg, proper height (64px)
+- Redesigned tabs: pill-style with orange active (#FF6B35), gray inactive (#333333), rounded-full
+- Redesigned resource cards: #1E1E1E bg, #333333 border, 12px radius, 20px padding, hover shadow
+- Redesigned badges: colored backgrounds with white text, 20px radius, 6px 12px padding
+- Redesigned inputs: #2A2A2A bg, #333333 border, orange focus, white text, #606060 placeholder
+- Redesigned buttons: primary orange (#FF6B35), secondary gray (#333333), 8px radius
+- Applied design to fonts section: sidebar, preview panel, Google Fonts browser, upload dialog
+- Set container max-width to 1200px, grid gap to 24px
+- Typography: Inter 14px body, 24px h1, 12px labels, proper line heights
+- Removed theme toggle (dark-only design)
+- Cleaned up unused imports (Button, Input, Badge, Card, etc.)
+- Verified all design tokens present in rendered HTML output
+
+Stage Summary:
+- Complete visual redesign matching Figma design bible
+- Dark-first theme with orange (#FF6B35) accent
+- Inter font throughout
+- Logo integrated in header and favicon
+- All components restyled: cards, badges, tabs, inputs, buttons, dialogs, scrollbars
+- Lint clean, compiles successfully
