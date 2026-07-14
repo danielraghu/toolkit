@@ -1,0 +1,67 @@
+// ============================================================
+// PostgreSQL Schema for Cloud Deployment
+// (Vercel, Render, cPanel with PostgreSQL)
+//
+// USAGE:
+//   1. Replace the provider in your main schema.prisma:
+//      - Change "provider = \"sqlite\"" to "provider = \"postgresql\""
+//   2. Update DATABASE_URL in .env:
+//      - PostgreSQL: "postgresql://user:password@host:5432/dbname?schema=public"
+//      - Turso/libSQL: "libsql://db-name.turso.io" (also needs @prisma/adapter-libsql)
+//   3. Run: npx prisma db push
+//   4. Run: npm run db:seed
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  description String?
+  category  String   @default("General")
+  tags      String   @default("")
+  faviconUrl String?
+  isFavorite Boolean @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Font {
+  id        String   @id @default(cuid())
+  name      String
+  family    String
+  source    String   @default("google")
+  variants  String   @default("[]")
+  filePath  String?
+  isUploaded Boolean @default(false)
+  isFavorite Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

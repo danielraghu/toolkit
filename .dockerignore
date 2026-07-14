@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.next/
+db/
+*.db
+*.db-journal
+
+# Mini services
+mini-services/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Misc
+.git/
+README.md
+DEPLOY.md
