@@ -1,0 +1,1373 @@
+     1→"use client";
+     2→
+     3→import React, { useState, useEffect, useCallback, useRef } from "react";
+     4→import { motion, AnimatePresence } from "framer-motion";
+     5→import {
+     6→  Search,
+     7→  Plus,
+     8→  ExternalLink,
+     9→  Star,
+    10→  Trash2,
+    11→  Edit3,
+    12→  X,
+    13→  Link2,
+    14→  Type,
+    15→  Upload,
+    16→  Heart,
+    17→  Globe,
+    18→  FolderOpen,
+    19→  MoreHorizontal,
+    20→  Copy,
+    21→  Eye,
+    22→} from "lucide-react";
+    23→import {
+    24→  Dialog,
+    25→  DialogContent,
+    26→  DialogHeader,
+    27→  DialogTitle,
+    28→  DialogTrigger,
+    29→} from "@/components/ui/dialog";
+    30→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    31→import {
+    32→  Select,
+    33→  SelectContent,
+    34→  SelectItem,
+    35→  SelectTrigger,
+    36→  SelectValue,
+    37→} from "@/components/ui/select";
+    38→import { ScrollArea } from "@/components/ui/scroll-area";
+    39→import { Skeleton } from "@/components/ui/skeleton";
+    40→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+    41→import { toast } from "sonner";
+    42→
+    43→// ===================== TYPES =====================
+    44→
+    45→interface Resource {
+    46→  id: string;
+    47→  title: string;
+    48→  url: string;
+    49→  description: string | null;
+    50→  category: string;
+    51→  tags: string;
+    52→  faviconUrl: string | null;
+    53→  isFavorite: boolean;
+    54→  order: number;
+    55→  createdAt: string;
+    56→}
+    57→
+    58→interface FontVariant {
+    59→  weight: number;
+    60→  style: string;
+    61→  label: string;
+    62→}
+    63→
+    64→interface FontItem {
+    65→  id: string;
+    66→  name: string;
+    67→  family: string;
+    68→  source: string;
+    69→  variants: string;
+    70→  filePath: string | null;
+    71→  isUploaded: boolean;
+    72→  isFavorite: boolean;
+    73→  createdAt: string;
+    74→}
+    75→
+    76→interface GoogleFontResult {
+    77→  name: string;
+    78→  family: string;
+    79→  source: string;
+    80→  variants: string;
+    81→  category: string;
+    82→  files?: Record<string, string>;
+    83→}
+    84→
+    85→// ===================== ICON HELPER =====================
+    86→
+    87→function getCategoryIcon(category: string) {
+    88→  switch (category) {
+    89→    case "Design":
+    90→      return "🎨";
+    91→    case "Assets":
+    92→      return "📦";
+    93→    case "Development":
+    94→      return "💻";
+    95→    case "AI":
+    96→      return "🤖";
+    97→    case "Productivity":
+    98→      return "⚡";
+    99→    case "Reference":
+   100→      return "📖";
+   101→    case "Typography":
+   102→      return "🔤";
+   103→    default:
+   104→      return "🔗";
+   105→  }
+   106→}
+   107→
+   108→function getCategoryColor(category: string) {
+   109→  switch (category) {
+   110→    case "Design":
+   111→      return "badge-design";
+   112→    case "Assets":
+   113→      return "badge-assets";
+   114→    case "Development":
+   115→      return "badge-development";
+   116→    case "AI":
+   117→      return "badge-ai";
+   118→    case "Productivity":
+   119→      return "badge-productivity";
+   120→    case "Reference":
+   121→      return "badge-reference";
+   122→    case "Typography":
+   123→      return "badge-typography";
+   124→    default:
+   125→      return "badge-reference";
+   126→  }
+   127→}
+   128→
+   129→// ===================== MAIN APP =====================
+   130→
+   131→export default function Home() {
+   132→  const [activeTab, setActiveTab] = useState("resources");
+   133→
+   134→  return (
+   135→    <TooltipProvider delayDuration={200}>
+   136→      <div className="min-h-screen flex flex-col bg-background text-foreground">
+   137→        {/* HEADER */}
+   138→        <header className="sticky top-0 z-50 border-b border-[#333333] bg-[#121212]/90 backdrop-blur-xl">
+   139→          <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
+   140→            <div className="flex items-center gap-3">
+   141→              <img src="/logo.svg" alt="ToolKit" className="w-9 h-9" />
+   142→              <h1 className="text-lg font-bold tracking-tight text-white">ToolKit</h1>
+   143→            </div>
+   144→          </div>
+   145→        </header>
+   146→
+   147→        {/* TAB BAR */}
+   148→        <div className="border-b border-[#333333] bg-[#121212]/60">
+   149→          <div className="max-w-[1200px] mx-auto px-6 py-3">
+   150→            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+   151→              <TabsList className="bg-[#333333] h-10 p-1 gap-1 rounded-full">
+   152→                <TabsTrigger
+   153→                  value="resources"
+   154→                  className="h-8 px-4 rounded-full text-[14px] font-medium transition-all duration-200 data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-none text-[#A0A0A0] hover:text-[#FFFFFF]"
+   155→                >
+   156→                  <Link2 className="w-4 h-4 mr-2" />
+   157→                  Resources
+   158→                </TabsTrigger>
+   159→                <TabsTrigger
+   160→                  value="fonts"
+   161→                  className="h-8 px-4 rounded-full text-[14px] font-medium transition-all duration-200 data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-none text-[#A0A0A0] hover:text-[#FFFFFF]"
+   162→                >
+   163→                  <Type className="w-4 h-4 mr-2" />
+   164→                  Fonts
+   165→                </TabsTrigger>
+   166→              </TabsList>
+   167→            </Tabs>
+   168→          </div>
+   169→        </div>
+   170→
+   171→        {/* MAIN CONTENT */}
+   172→        <main className="flex-1">
+   173→          <AnimatePresence mode="wait">
+   174→            {activeTab === "resources" ? (
+   175→              <motion.div
+   176→                key="resources"
+   177→                initial={{ opacity: 0, y: 8 }}
+   178→                animate={{ opacity: 1, y: 0 }}
+   179→                exit={{ opacity: 0, y: -8 }}
+   180→                transition={{ duration: 0.2 }}
+   181→              >
+   182→                <ResourcesSection />
+   183→              </motion.div>
+   184→            ) : (
+   185→              <motion.div
+   186→                key="fonts"
+   187→                initial={{ opacity: 0, y: 8 }}
+   188→                animate={{ opacity: 1, y: 0 }}
+   189→                exit={{ opacity: 0, y: -8 }}
+   190→                transition={{ duration: 0.2 }}
+   191→              >
+   192→                <FontsSection />
+   193→              </motion.div>
+   194→            )}
+   195→          </AnimatePresence>
+   196→        </main>
+   197→
+   198→        {/* FOOTER */}
+   199→        <footer className="border-t border-[#333333] bg-[#121212]/60 mt-auto">
+   200→          <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between text-xs text-[#606060]">
+   201→            <span>ToolKit — Resources & Fonts Hub</span>
+   202→            <span>Built with Next.js & shadcn/ui</span>
+   203→          </div>
+   204→        </footer>
+   205→      </div>
+   206→    </TooltipProvider>
+   207→  );
+   208→}
+   209→
+   210→// ===================== RESOURCES SECTION =====================
+   211→
+   212→function ResourcesSection() {
+   213→  const [resources, setResources] = useState<Resource[]>([]);
+   214→  const [categories, setCategories] = useState<string[]>([]);
+   215→  const [search, setSearch] = useState("");
+   216→  const [activeCategory, setActiveCategory] = useState("All");
+   217→  const [showFavorites, setShowFavorites] = useState(false);
+   218→  const [loading, setLoading] = useState(true);
+   219→  const [dialogOpen, setDialogOpen] = useState(false);
+   220→  const [editItem, setEditItem] = useState<Resource | null>(null);
+   221→  const [formTitle, setFormTitle] = useState("");
+   222→  const [formUrl, setFormUrl] = useState("");
+   223→  const [formDesc, setFormDesc] = useState("");
+   224→  const [formCategory, setFormCategory] = useState("General");
+   225→  const [formTags, setFormTags] = useState("");
+   226→
+   227→  const fetchResources = useCallback(async () => {
+   228→    try {
+   229→      setLoading(true);
+   230→      const params = new URLSearchParams();
+   231→      if (activeCategory !== "All") params.set("category", activeCategory);
+   232→      if (search) params.set("search", search);
+   233→      if (showFavorites) params.set("favorites", "true");
+   234→
+   235→      const res = await fetch(`/api/resources?${params}`);
+   236→      const data = await res.json();
+   237→      setResources(data.resources || []);
+   238→      setCategories(data.categories || []);
+   239→    } catch {
+   240→      toast.error("Failed to load resources");
+   241→    } finally {
+   242→      setLoading(false);
+   243→    }
+   244→  }, [activeCategory, search, showFavorites]);
+   245→
+   246→  useEffect(() => {
+   247→    fetchResources();
+   248→  }, [fetchResources]);
+   249→
+   250→  const handleSubmit = async () => {
+   251→    if (!formTitle.trim() || !formUrl.trim()) {
+   252→      toast.error("Title and URL are required");
+   253→      return;
+   254→    }
+   255→
+   256→    try {
+   257→      let url = formUrl.trim();
+   258→      if (!url.startsWith("http")) url = `https://${url}`;
+   259→
+   260→      const body = {
+   261→        title: formTitle.trim(),
+   262→        url,
+   263→        description: formDesc.trim(),
+   264→        category: formCategory,
+   265→        tags: formTags.trim(),
+   266→        faviconUrl: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`,
+   267→      };
+   268→
+   269→      if (editItem) {
+   270→        await fetch("/api/resources", {
+   271→          method: "PUT",
+   272→          headers: { "Content-Type": "application/json" },
+   273→          body: JSON.stringify({ id: editItem.id, ...body }),
+   274→        });
+   275→        toast.success("Resource updated");
+   276→      } else {
+   277→        await fetch("/api/resources", {
+   278→          method: "POST",
+   279→          headers: { "Content-Type": "application/json" },
+   280→          body: JSON.stringify(body),
+   281→        });
+   282→        toast.success("Resource added");
+   283→      }
+   284→
+   285→      setDialogOpen(false);
+   286→      resetForm();
+   287→      fetchResources();
+   288→    } catch {
+   289→      toast.error("Failed to save resource");
+   290→    }
+   291→  };
+   292→
+   293→  const handleDelete = async (id: string) => {
+   294→    try {
+   295→      await fetch(`/api/resources?id=${id}`, { method: "DELETE" });
+   296→      toast.success("Resource deleted");
+   297→      fetchResources();
+   298→    } catch {
+   299→      toast.error("Failed to delete");
+   300→    }
+   301→  };
+   302→
+   303→  const toggleFavorite = async (r: Resource) => {
+   304→    try {
+   305→      await fetch("/api/resources", {
+   306→        method: "PUT",
+   307→        headers: { "Content-Type": "application/json" },
+   308→        body: JSON.stringify({ id: r.id, isFavorite: !r.isFavorite }),
+   309→      });
+   310→      fetchResources();
+   311→    } catch {
+   312→      toast.error("Failed to update");
+   313→    }
+   314→  };
+   315→
+   316→  const openEdit = (r: Resource) => {
+   317→    setEditItem(r);
+   318→    setFormTitle(r.title);
+   319→    setFormUrl(r.url);
+   320→    setFormDesc(r.description || "");
+   321→    setFormCategory(r.category);
+   322→    setFormTags(r.tags);
+   323→    setDialogOpen(true);
+   324→  };
+   325→
+   326→  const openAdd = () => {
+   327→    setEditItem(null);
+   328→    resetForm();
+   329→    setDialogOpen(true);
+   330→  };
+   331→
+   332→  const resetForm = () => {
+   333→    setEditItem(null);
+   334→    setFormTitle("");
+   335→    setFormUrl("");
+   336→    setFormDesc("");
+   337→    setFormCategory("General");
+   338→    setFormTags("");
+   339→  };
+   340→
+   341→  const allCategories = ["All", ...categories];
+   342→
+   343→  return (
+   344→    <div className="max-w-[1200px] mx-auto px-6 py-8">
+   345→      {/* TOP BAR */}
+   346→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+   347→        <div>
+   348→          <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Resource Library</h2>
+   349→          <p className="text-[14px] text-[#A0A0A0] mt-1" style={{ lineHeight: 1.5 }}>
+   350→            {resources.length} resources in your collection
+   351→          </p>
+   352→        </div>
+   353→        <button
+   354→          onClick={openAdd}
+   355→          className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+   356→        >
+   357→          <Plus className="w-4 h-4" />
+   358→          Add Resource
+   359→        </button>
+   360→      </div>
+   361→
+   362→      {/* SEARCH & FILTERS */}
+   363→      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+   364→        <div className="relative flex-1">
+   365→          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#606060]" />
+   366→          <input
+   367→            placeholder="Search resources..."
+   368→            value={search}
+   369→            onChange={(e) => setSearch(e.target.value)}
+   370→            className="w-full pl-12 pr-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   371→          />
+   372→        </div>
+   373→        <button
+   374→          variant={showFavorites ? "default" : "outline"}
+   375→          onClick={() => setShowFavorites(!showFavorites)}
+   376→          className={`inline-flex items-center gap-1.5 px-4 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+   377→            showFavorites
+   378→              ? "bg-[#FF6B35] text-white"
+   379→              : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
+   380→          }`}
+   381→        >
+   382→          <Heart className={`w-4 h-4 ${showFavorites ? "fill-current" : ""}`} />
+   383→          Favorites
+   384→        </button>
+   385→      </div>
+   386→
+   387→      {/* CATEGORY FILTERS */}
+   388→      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none">
+   389→        {allCategories.map((cat) => (
+   390→          <button
+   391→            key={cat}
+   392→            onClick={() => setActiveCategory(cat)}
+   393→            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 ${
+   394→              activeCategory === cat
+   395→                ? "bg-[#FF6B35] text-white"
+   396→                : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
+   397→            }`}
+   398→          >
+   399→            {cat !== "All" && <span className="text-xs">{getCategoryIcon(cat)}</span>}
+   400→            {cat}
+   401→          </button>
+   402→        ))}
+   403→      </div>
+   404→
+   405→      {/* GRID */}
+   406→      {loading ? (
+   407→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+   408→          {Array.from({ length: 6 }).map((_, i) => (
+   409→            <div key={i} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5">
+   410→              <div className="flex items-start gap-3">
+   411→                <Skeleton className="w-10 h-10 rounded-lg bg-[#333333]" />
+   412→                <div className="flex-1">
+   413→                  <Skeleton className="h-5 w-24 mb-2 bg-[#333333]" />
+   414→                  <Skeleton className="h-3 w-full mb-1 bg-[#333333]" />
+   415→                  <Skeleton className="h-3 w-3/4 bg-[#333333]" />
+   416→                </div>
+   417→              </div>
+   418→            </div>
+   419→          ))}
+   420→        </div>
+   421→      ) : resources.length === 0 ? (
+   422→        <div className="text-center py-20">
+   423→          <FolderOpen className="w-12 h-12 mx-auto text-[#606060] mb-4" />
+   424→          <h3 className="text-[18px] font-semibold text-white mb-1">No resources found</h3>
+   425→          <p className="text-[14px] text-[#A0A0A0]">
+   426→            {showFavorites
+   427→              ? "You haven't favorited any resources yet"
+   428→              : "Try adjusting your search or filters"}
+   429→          </p>
+   430→        </div>
+   431→      ) : (
+   432→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+   433→          {resources.map((r) => (
+   434→            <ResourceCard
+   435→              key={r.id}
+   436→              resource={r}
+   437→              onFavorite={() => toggleFavorite(r)}
+   438→              onEdit={() => openEdit(r)}
+   439→              onDelete={() => handleDelete(r.id)}
+   440→            />
+   441→          ))}
+   442→        </div>
+   443→      )}
+   444→
+   445→      {/* ADD/EDIT DIALOG */}
+   446→      <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
+   447→        <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+   448→          <DialogHeader>
+   449→            <DialogTitle className="text-white">{editItem ? "Edit Resource" : "Add Resource"}</DialogTitle>
+   450→          </DialogHeader>
+   451→          <div className="space-y-4 mt-2">
+   452→            <div className="space-y-2">
+   453→              <label className="text-[14px] font-medium text-[#A0A0A0]">Title *</label>
+   454→              <input
+   455→                placeholder="e.g. Figma"
+   456→                value={formTitle}
+   457→                onChange={(e) => setFormTitle(e.target.value)}
+   458→                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   459→              />
+   460→            </div>
+   461→            <div className="space-y-2">
+   462→              <label className="text-[14px] font-medium text-[#A0A0A0]">URL *</label>
+   463→              <input
+   464→                placeholder="https://example.com"
+   465→                value={formUrl}
+   466→                onChange={(e) => setFormUrl(e.target.value)}
+   467→                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   468→              />
+   469→            </div>
+   470→            <div className="space-y-2">
+   471→              <label className="text-[14px] font-medium text-[#A0A0A0]">Description</label>
+   472→              <textarea
+   473→                placeholder="Brief description of this resource..."
+   474→                value={formDesc}
+   475→                onChange={(e) => setFormDesc(e.target.value)}
+   476→                rows={2}
+   477→                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 resize-none"
+   478→              />
+   479→            </div>
+   480→            <div className="space-y-2">
+   481→              <label className="text-[14px] font-medium text-[#A0A0A0]">Category</label>
+   482→              <Select value={formCategory} onValueChange={setFormCategory}>
+   483→                <SelectTrigger className="w-full bg-[#2A2A2A] border-[#333333] text-white">
+   484→                  <SelectValue />
+   485→                </SelectTrigger>
+   486→                <SelectContent className="bg-[#1E1E1E] border-[#333333]">
+   487→                  {["Design", "Assets", "Development", "AI", "Productivity", "Reference", "Typography", "General"].map(
+   488→                    (c) => (
+   489→                      <SelectItem key={c} value={c} className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">
+   490→                        {getCategoryIcon(c)} {c}
+   491→                      </SelectItem>
+   492→                    )
+   493→                  )}
+   494→                </SelectContent>
+   495→              </Select>
+   496→            </div>
+   497→            <div className="space-y-2">
+   498→              <label className="text-[14px] font-medium text-[#A0A0A0]">Tags</label>
+   499→              <input
+   500→                placeholder="design, ui, free (comma separated)"
+   501→                value={formTags}
+   502→                onChange={(e) => setFormTags(e.target.value)}
+   503→                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   504→              />
+   505→            </div>
+   506→            <div className="flex justify-end gap-2 pt-2">
+   507→              <button
+   508→                onClick={() => { setDialogOpen(false); resetForm(); }}
+   509→                className="px-5 py-3 bg-[#333333] hover:bg-[#444444] text-white rounded-lg text-[14px] font-medium transition-all duration-200"
+   510→              >
+   511→                Cancel
+   512→              </button>
+   513→              <button
+   514→                onClick={handleSubmit}
+   515→                className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+   516→              >
+   517→                {editItem ? "Save Changes" : "Add Resource"}
+   518→              </button>
+   519→            </div>
+   520→          </div>
+   521→        </DialogContent>
+   522→      </Dialog>
+   523→    </div>
+   524→  );
+   525→}
+   526→
+   527→// ===================== RESOURCE CARD =====================
+   528→
+   529→function ResourceCard({
+   530→  resource,
+   531→  onFavorite,
+   532→  onEdit,
+   533→  onDelete,
+   534→}: {
+   535→  resource: Resource;
+   536→  onFavorite: () => void;
+   537→  onEdit: () => void;
+   538→  onDelete: () => void;
+   539→}) {
+   540→  const [showMenu, setShowMenu] = useState(false);
+   541→  const menuRef = useRef<HTMLDivElement>(null);
+   542→  const hostname = (() => {
+   543→    try { return new URL(resource.url).hostname; } catch { return resource.url; }
+   544→  })();
+   545→
+   546→  useEffect(() => {
+   547→    const handleClickOutside = (e: MouseEvent) => {
+   548→      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+   549→        setShowMenu(false);
+   550→      }
+   551→    };
+   552→    if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+   553→    return () => document.removeEventListener("mousedown", handleClickOutside);
+   554→  }, [showMenu]);
+   555→
+   556→  return (
+   557→    <motion.div
+   558→      layout
+   559→      initial={{ opacity: 0, y: 12 }}
+   560→      animate={{ opacity: 1, y: 0 }}
+   561→      exit={{ opacity: 0, y: -12 }}
+   562→      transition={{ duration: 0.2 }}
+   563→      className="h-full"
+   564→    >
+   565→      <div
+   566→        className="group bg-[#1E1E1E] border border-[#333333] rounded-xl p-5 h-full flex flex-col transition-all duration-200 hover:border-[#444444] hover:shadow-[0_8px_16px_rgba(0,0,0,0.2)]"
+   567→      >
+   568→        <div className="flex items-start gap-3 flex-1">
+   569→          {/* FAVICON */}
+   570→          <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center flex-shrink-0 overflow-hidden">
+   571→            {resource.faviconUrl ? (
+   572→              <img
+   573→                src={resource.faviconUrl}
+   574→                alt=""
+   575→                className="w-6 h-6"
+   576→                onError={(e) => {
+   577→                  (e.target as HTMLImageElement).style.display = "none";
+   578→                  (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-lg">${getCategoryIcon(resource.category)}</span>`;
+   579→                }}
+   580→              />
+   581→            ) : (
+   582→              <span className="text-lg">{getCategoryIcon(resource.category)}</span>
+   583→            )}
+   584→          </div>
+   585→
+   586→          {/* CONTENT */}
+   587→          <div className="flex-1 min-w-0">
+   588→            <div className="flex items-center gap-2 mb-0.5">
+   589→              <h3 className="font-semibold text-[14px] text-white truncate">{resource.title}</h3>
+   590→              <button
+   591→                onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+   592→                className="flex-shrink-0"
+   593→              >
+   594→                <Star
+   595→                  className={`w-3.5 h-3.5 transition-colors ${
+   596→                    resource.isFavorite
+   597→                      ? "fill-[#FFD700] text-[#FFD700]"
+   598→                      : "text-[#606060] hover:text-[#FFD700]"
+   599→                  }`}
+   600→                />
+   601→              </button>
+   602→            </div>
+   603→            <p className="text-[12px] text-[#00BFFF] mb-2">{hostname}</p>
+   604→            <p className="text-[12px] text-[#A0A0A0] line-clamp-2 mb-2 min-h-[2.5rem]">
+   605→              {resource.description || "\u00A0"}
+   606→            </p>
+   607→            <div className="flex items-center gap-2 overflow-hidden">
+   608→              <span
+   609→                className={`ds-badge text-[10px] px-3 py-1 ${getCategoryColor(resource.category)}`}
+   610→              >
+   611→                {resource.category}
+   612→              </span>
+   613→              {resource.tags &&
+   614→                resource.tags.split(",").slice(0, 2).map((tag) => (
+   615→                  <span
+   616→                    key={tag}
+   617→                    className="text-[10px] text-[#606060] truncate"
+   618→                  >
+   619→                    #{tag.trim()}
+   620→                  </span>
+   621→                ))}
+   622→            </div>
+   623→          </div>
+   624→
+   625→          {/* ACTIONS */}
+   626→          <div className="flex items-center gap-1 flex-shrink-0" ref={menuRef}>
+   627→            <Tooltip>
+   628→              <TooltipTrigger asChild>
+   629→                <a
+   630→                  href={resource.url}
+   631→                  target="_blank"
+   632→                  rel="noopener noreferrer"
+   633→                  className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"
+   634→                >
+   635→                  <ExternalLink className="w-4 h-4 text-[#A0A0A0]" />
+   636→                </a>
+   637→              </TooltipTrigger>
+   638→              <TooltipContent>Visit site</TooltipContent>
+   639→            </Tooltip>
+   640→            <div className="relative">
+   641→              <button
+   642→                onClick={() => setShowMenu(!showMenu)}
+   643→                className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"
+   644→              >
+   645→                <MoreHorizontal className="w-4 h-4 text-[#A0A0A0]" />
+   646→              </button>
+   647→              <AnimatePresence>
+   648→                {showMenu && (
+   649→                  <motion.div
+   650→                    initial={{ opacity: 0, scale: 0.95 }}
+   651→                    animate={{ opacity: 1, scale: 1 }}
+   652→                    exit={{ opacity: 0, scale: 0.95 }}
+   653→                    className="absolute right-0 top-full mt-1 w-36 bg-[#1E1E1E] border border-[#333333] rounded-lg shadow-[0_8px_16px_rgba(0,0,0,0.2)] z-50 py-1 overflow-hidden"
+   654→                  >
+   655→                    <button
+   656→                      onClick={() => { setShowMenu(false); onEdit(); }}
+   657→                      className="w-full flex items-center gap-2 px-3 py-2 text-[14px] hover:bg-[#2A2A2A] transition-colors text-left text-[#A0A0A0] hover:text-white"
+   658→                    >
+   659→                      <Edit3 className="w-3.5 h-3.5" /> Edit
+   660→                    </button>
+   661→                    <button
+   662→                      onClick={() => { setShowMenu(false); onDelete(); }}
+   663→                      className="w-full flex items-center gap-2 px-3 py-2 text-[14px] hover:bg-red-500/10 text-red-400 transition-colors text-left"
+   664→                    >
+   665→                      <Trash2 className="w-3.5 h-3.5" /> Delete
+   666→                    </button>
+   667→                  </motion.div>
+   668→                )}
+   669→              </AnimatePresence>
+   670→            </div>
+   671→          </div>
+   672→        </div>
+   673→      </div>
+   674→    </motion.div>
+   675→  );
+   676→}
+   677→
+   678→// ===================== FONTS SECTION =====================
+   679→
+   680→function FontsSection() {
+   681→  const [fonts, setFonts] = useState<FontItem[]>([]);
+   682→  const [selectedFont, setSelectedFont] = useState<FontItem | null>(null);
+   683→  const [search, setSearch] = useState("");
+   684→  const [loading, setLoading] = useState(true);
+   685→  const [previewText, setPreviewText] = useState(
+   686→    "The quick brown fox jumps over the lazy dog"
+   687→  );
+   688→  const [previewSize, setPreviewSize] = useState(48);
+   689→  const [showUpload, setShowUpload] = useState(false);
+   690→  const [showGoogleBrowser, setShowGoogleBrowser] = useState(false);
+   691→  const [googleFonts, setGoogleFonts] = useState<GoogleFontResult[]>([]);
+   692→  const [googleSearch, setGoogleSearch] = useState("");
+   693→  const [googleLoading, setGoogleLoading] = useState(false);
+   694→  const [loadedFontFamilies, setLoadedFontFamilies] = useState<Set<string>>(
+   695→    new Set()
+   696→  );
+   697→  const [filterSource, setFilterSource] = useState("All");
+   698→  const [uploadName, setUploadName] = useState("");
+   699→  const [uploadFamily, setUploadFamily] = useState("");
+   700→
+   701→  const fetchFonts = useCallback(async () => {
+   702→    try {
+   703→      setLoading(true);
+   704→      const params = new URLSearchParams();
+   705→      if (search) params.set("search", search);
+   706→      if (filterSource !== "All") params.set("source", filterSource);
+   707→      const res = await fetch(`/api/fonts?${params}`);
+   708→      const data = await res.json();
+   709→      setFonts(data.fonts || []);
+   710→    } catch {
+   711→      toast.error("Failed to load fonts");
+   712→    } finally {
+   713→      setLoading(false);
+   714→    }
+   715→  }, [search, filterSource]);
+   716→
+   717→  useEffect(() => {
+   718→    fetchFonts();
+   719→  }, [fetchFonts]);
+   720→
+   721→  // Load Google Font when a font is selected
+   722→  useEffect(() => {
+   723→    if (!selectedFont) return;
+   724→
+   725→    if (selectedFont.source === "google") {
+   726→      if (!loadedFontFamilies.has(selectedFont.family)) {
+   727→        const link = document.createElement("link");
+   728→        link.href = `https://fonts.googleapis.com/css2?family=${selectedFont.family.replace(/ /g, "+")}:wght@100;200;300;400;500;600;700;800;900&display=swap`;
+   729→        link.rel = "stylesheet";
+   730→        document.head.appendChild(link);
+   731→        setLoadedFontFamilies((prev) => new Set(prev).add(selectedFont.family));
+   732→      }
+   733→    } else if (selectedFont.source === "custom" && selectedFont.filePath) {
+   734→      if (!loadedFontFamilies.has(selectedFont.family)) {
+   735→        const style = document.createElement("style");
+   736→        style.textContent = `
+   737→          @font-face {
+   738→            font-family: '${selectedFont.family}';
+   739→            src: url('${selectedFont.filePath}') format('truetype');
+   740→            font-weight: normal;
+   741→            font-style: normal;
+   742→          }
+   743→        `;
+   744→        document.head.appendChild(style);
+   745→        setLoadedFontFamilies((prev) => new Set(prev).add(selectedFont.family));
+   746→      }
+   747→    }
+   748→  }, [selectedFont, loadedFontFamilies]);
+   749→
+   750→  // Fetch Google Fonts for browser
+   751→  const fetchGoogleFonts = async (q: string = "") => {
+   752→    try {
+   753→      setGoogleLoading(true);
+   754→      const existingNames = fonts
+   755→        .filter((f) => f.source === "google")
+   756→        .map((f) => f.family)
+   757→        .join(",");
+   758→      const params = new URLSearchParams();
+   759→      if (q) params.set("q", q);
+   760→      if (existingNames) params.set("existing", existingNames);
+   761→      const res = await fetch(`/api/fonts/google?${params}`);
+   762→      const data = await res.json();
+   763→      setGoogleFonts(data.fonts || []);
+   764→    } catch {
+   765→      toast.error("Failed to fetch Google Fonts");
+   766→    } finally {
+   767→      setGoogleLoading(false);
+   768→    }
+   769→  };
+   770→
+   771→  useEffect(() => {
+   772→    if (showGoogleBrowser) fetchGoogleFonts();
+   773→  }, [showGoogleBrowser]);
+   774→
+   775→  const addGoogleFont = async (gf: GoogleFontResult) => {
+   776→    try {
+   777→      const res = await fetch("/api/fonts", {
+   778→        method: "POST",
+   779→        headers: { "Content-Type": "application/json" },
+   780→        body: JSON.stringify({
+   781→          name: gf.name,
+   782→          family: gf.family,
+   783→          source: "google",
+   784→          variants: gf.variants,
+   785→        }),
+   786→      });
+   787→      const font = await res.json();
+   788→      setFonts((prev) => [font, ...prev]);
+   789→      toast.success(`Added "${gf.family}" to your collection`);
+   790→    } catch {
+   791→      toast.error("Failed to add font");
+   792→    }
+   793→  };
+   794→
+   795→  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+   796→    const file = e.target.files?.[0];
+   797→    if (!file) return;
+   798→
+   799→    if (!uploadName.trim() || !uploadFamily.trim()) {
+   800→      toast.error("Please enter font name and family");
+   801→      return;
+   802→    }
+   803→
+   804→    const formData = new FormData();
+   805→    formData.append("font", file);
+   806→    formData.append("name", uploadName.trim());
+   807→    formData.append("family", uploadFamily.trim());
+   808→
+   809→    try {
+   810→      const res = await fetch("/api/fonts/upload", {
+   811→        method: "POST",
+   812→        body: formData,
+   813→      });
+   814→      const font = await res.json();
+   815→      if (res.ok) {
+   816→        setFonts((prev) => [font, ...prev]);
+   817→        toast.success(`Uploaded "${uploadFamily}"`);
+   818→        setShowUpload(false);
+   819→        setUploadName("");
+   820→        setUploadFamily("");
+   821→      } else {
+   822→        toast.error(font.error || "Upload failed");
+   823→      }
+   824→    } catch {
+   825→      toast.error("Failed to upload font");
+   826→    }
+   827→
+   828→    e.target.value = "";
+   829→  };
+   830→
+   831→  const handleDeleteFont = async (id: string) => {
+   832→    try {
+   833→      await fetch(`/api/fonts?id=${id}`, { method: "DELETE" });
+   834→      setFonts((prev) => prev.filter((f) => f.id !== id));
+   835→      if (selectedFont?.id === id) setSelectedFont(null);
+   836→      toast.success("Font removed");
+   837→    } catch {
+   838→      toast.error("Failed to delete font");
+   839→    }
+   840→  };
+   841→
+   842→  const parseVariants = (variantsStr: string): FontVariant[] => {
+   843→    try {
+   844→      const raw: string[] = JSON.parse(variantsStr);
+   845→      return raw.map((v) => {
+   846→        let weight = 400;
+   847→        let style = "normal";
+   848→        let label = v;
+   849→
+   850→        if (v.includes("italic")) style = "italic";
+   851→        const num = v.match(/\d+/);
+   852→        if (num) weight = parseInt(num[0]);
+   853→
+   854→        const weightLabels: Record<number, string> = {
+   855→          100: "Thin",
+   856→          200: "Extra Light",
+   857→          300: "Light",
+   858→          400: "Regular",
+   859→          500: "Medium",
+   860→          600: "Semi Bold",
+   861→          700: "Bold",
+   862→          800: "Extra Bold",
+   863→          900: "Black",
+   864→        };
+   865→
+   866→        label = weightLabels[weight] || `Weight ${weight}`;
+   867→        if (style === "italic") label += " Italic";
+   868→
+   869→        return { weight, style, label };
+   870→      });
+   871→    } catch {
+   872→      return [{ weight: 400, style: "normal", label: "Regular" }];
+   873→    }
+   874→  };
+   875→
+   876→  const variants = selectedFont ? parseVariants(selectedFont.variants) : [];
+   877→  const uniqueWeights = [...new Set(variants.map((v) => v.weight))].sort(
+   878→    (a, b) => a - b
+   879→  );
+   880→  const variantCount = new Set(
+   881→    variants.map((v) => `${v.weight}-${v.style}`)
+   882→  ).size;
+   883→
+   884→  return (
+   885→    <div className="max-w-[1200px] mx-auto px-6 py-8">
+   886→      {/* TOP BAR */}
+   887→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+   888→        <div>
+   889→          <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Font Library</h2>
+   890→          <p className="text-[14px] text-[#A0A0A0] mt-1" style={{ lineHeight: 1.5 }}>
+   891→            {fonts.length} fonts in your collection
+   892→          </p>
+   893→        </div>
+   894→        <div className="flex gap-2">
+   895→          <button
+   896→            onClick={() => setShowGoogleBrowser(!showGoogleBrowser)}
+   897→            className={`inline-flex items-center gap-2 px-4 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${
+   898→              showGoogleBrowser
+   899→                ? "bg-[#FF6B35] text-white"
+   900→                : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"
+   901→            }`}
+   902→          >
+   903→            <Globe className="w-4 h-4" />
+   904→            Browse Google Fonts
+   905→          </button>
+   906→          <Dialog open={showUpload} onOpenChange={setShowUpload}>
+   907→            <DialogTrigger asChild>
+   908→              <button className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200">
+   909→                <Upload className="w-4 h-4" />
+   910→                Upload Font
+   911→              </button>
+   912→            </DialogTrigger>
+   913→            <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+   914→              <DialogHeader>
+   915→                <DialogTitle className="text-white">Upload Custom Font</DialogTitle>
+   916→              </DialogHeader>
+   917→              <div className="space-y-4 mt-2">
+   918→                <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center">
+   919→                  <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+   920→                  <p className="text-[14px] text-[#A0A0A0] mb-3">
+   921→                    Upload .ttf or .otf file
+   922→                  </p>
+   923→                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[14px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
+   924→                    Choose File
+   925→                    <input
+   926→                      type="file"
+   927→                      accept=".ttf,.otf,.woff,.woff2"
+   928→                      className="hidden"
+   929→                      onChange={handleUpload}
+   930→                    />
+   931→                  </label>
+   932→                </div>
+   933→                <div className="space-y-2">
+   934→                  <label className="text-[14px] font-medium text-[#A0A0A0]">Display Name</label>
+   935→                  <input
+   936→                    placeholder="e.g. My Custom Font"
+   937→                    value={uploadName}
+   938→                    onChange={(e) => setUploadName(e.target.value)}
+   939→                    className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   940→                  />
+   941→                </div>
+   942→                <div className="space-y-2">
+   943→                  <label className="text-[14px] font-medium text-[#A0A0A0]">CSS Font Family</label>
+   944→                  <input
+   945→                    placeholder="e.g. MyCustomFont"
+   946→                    value={uploadFamily}
+   947→                    onChange={(e) => setUploadFamily(e.target.value)}
+   948→                    className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   949→                  />
+   950→                </div>
+   951→              </div>
+   952→            </DialogContent>
+   953→          </Dialog>
+   954→        </div>
+   955→      </div>
+   956→
+   957→      {/* GOOGLE FONTS BROWSER */}
+   958→      <AnimatePresence>
+   959→        {showGoogleBrowser && (
+   960→          <motion.div
+   961→            initial={{ height: 0, opacity: 0 }}
+   962→            animate={{ height: "auto", opacity: 1 }}
+   963→            exit={{ height: 0, opacity: 0 }}
+   964→            transition={{ duration: 0.3 }}
+   965→            className="overflow-hidden mb-6"
+   966→          >
+   967→            <div className="bg-[#1E1E1E] border border-[#333333] rounded-xl overflow-hidden">
+   968→              <div className="p-4 border-b border-[#333333]">
+   969→                <div className="flex items-center justify-between mb-4">
+   970→                  <h3 className="font-semibold text-white">Browse Google Fonts</h3>
+   971→                  <button
+   972→                    onClick={() => setShowGoogleBrowser(false)}
+   973→                    className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors text-[#A0A0A0]"
+   974→                  >
+   975→                    <X className="w-4 h-4" />
+   976→                  </button>
+   977→                </div>
+   978→                <div className="relative mb-4">
+   979→                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+   980→                  <input
+   981→                    placeholder="Search Google Fonts..."
+   982→                    value={googleSearch}
+   983→                    onChange={(e) => {
+   984→                      setGoogleSearch(e.target.value);
+   985→                      fetchGoogleFonts(e.target.value);
+   986→                    }}
+   987→                    className="w-full pl-11 pr-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+   988→                  />
+   989→                </div>
+   990→                <ScrollArea className="h-72">
+   991→                  {googleLoading ? (
+   992→                    <div className="space-y-3 p-1">
+   993→                      {Array.from({ length: 6 }).map((_, i) => (
+   994→                        <div key={i} className="flex items-center justify-between p-3">
+   995→                          <div>
+   996→                            <Skeleton className="h-5 w-40 mb-2 bg-[#333333]" />
+   997→                            <Skeleton className="h-3 w-24 bg-[#333333]" />
+   998→                          </div>
+   999→                          <Skeleton className="h-8 w-20 bg-[#333333]" />
+  1000→                        </div>
+  1001→                      ))}
+  1002→                    </div>
+  1003→                  ) : googleFonts.length === 0 ? (
+  1004→                    <div className="text-center py-8 text-[#606060] text-[14px]">
+  1005→                      No fonts found
+  1006→                    </div>
+  1007→                  ) : (
+  1008→                    <div className="space-y-1">
+  1009→                      {googleFonts.map((gf) => (
+  1010→                        <div
+  1011→                          key={gf.family}
+  1012→                          className="flex items-center justify-between p-3 rounded-lg hover:bg-[#2A2A2A] transition-colors"
+  1013→                        >
+  1014→                          <div>
+  1015→                            <p
+  1016→                              className="text-[18px] font-medium text-white"
+  1017→                              style={{
+  1018→                                fontFamily: `'${gf.family}', sans-serif`,
+  1019→                              }}
+  1020→                            >
+  1021→                              {gf.family}
+  1022→                            </p>
+  1023→                            <p className="text-[12px] text-[#606060] mt-0.5">
+  1024→                              {gf.category} · {JSON.parse(gf.variants).length}{" "}
+  1025→                              variants
+  1026→                            </p>
+  1027→                          </div>
+  1028→                          <button
+  1029→                            onClick={() => addGoogleFont(gf)}
+  1030→                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[12px] font-medium transition-all duration-200 flex-shrink-0"
+  1031→                          >
+  1032→                            <Plus className="w-3.5 h-3.5" />
+  1033→                            Add
+  1034→                          </button>
+  1035→                        </div>
+  1036→                      ))}
+  1037→                    </div>
+  1038→                  )}
+  1039→                </ScrollArea>
+  1040→              </div>
+  1041→            </div>
+  1042→          </motion.div>
+  1043→        )}
+  1044→      </AnimatePresence>
+  1045→
+  1046→      {/* SEARCH & FILTER */}
+  1047→      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+  1048→        <div className="relative flex-1">
+  1049→          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#606060]" />
+  1050→          <input
+  1051→            placeholder="Search fonts..."
+  1052→            value={search}
+  1053→            onChange={(e) => setSearch(e.target.value)}
+  1054→            className="w-full pl-12 pr-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+  1055→          />
+  1056→        </div>
+  1057→        <Select value={filterSource} onValueChange={setFilterSource}>
+  1058→          <SelectTrigger className="w-36 py-3 bg-[#2A2A2A] border-[#333333] text-[#A0A0A0] rounded-lg">
+  1059→            <SelectValue placeholder="Source" />
+  1060→          </SelectTrigger>
+  1061→          <SelectContent className="bg-[#1E1E1E] border-[#333333]">
+  1062→            <SelectItem value="All" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">All Sources</SelectItem>
+  1063→            <SelectItem value="google" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">Google Fonts</SelectItem>
+  1064→            <SelectItem value="custom" className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">Uploaded</SelectItem>
+  1065→          </SelectContent>
+  1066→        </Select>
+  1067→      </div>
+  1068→
+  1069→      {/* FONT LIST + PREVIEW */}
+  1070→      <div className="flex flex-col lg:flex-row gap-6">
+  1071→        {/* FONT LIST */}
+  1072→        <div className="lg:w-80 flex-shrink-0">
+  1073→          <div className="border border-[#333333] rounded-xl overflow-hidden bg-[#1E1E1E]">
+  1074→            <div className="p-3 border-b border-[#333333] bg-[#1A1A1A]">
+  1075→              <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">
+  1076→                Your Fonts
+  1077→              </p>
+  1078→            </div>
+  1079→            <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px]">
+  1080→              {loading ? (
+  1081→                <div className="p-3 space-y-2">
+  1082→                  {Array.from({ length: 8 }).map((_, i) => (
+  1083→                    <div key={i} className="flex items-center gap-3 p-2">
+  1084→                      <Skeleton className="w-8 h-8 rounded bg-[#333333]" />
+  1085→                      <div className="flex-1">
+  1086→                        <Skeleton className="h-4 w-28 mb-1 bg-[#333333]" />
+  1087→                        <Skeleton className="h-3 w-16 bg-[#333333]" />
+  1088→                      </div>
+  1089→                    </div>
+  1090→                  ))}
+  1091→                </div>
+  1092→              ) : fonts.length === 0 ? (
+  1093→                <div className="text-center py-12 px-4">
+  1094→                  <Type className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+  1095→                  <p className="text-[14px] text-[#A0A0A0]">No fonts yet</p>
+  1096→                  <p className="text-[12px] text-[#606060] mt-1">
+  1097→                    Browse Google Fonts or upload your own
+  1098→                  </p>
+  1099→                </div>
+  1100→              ) : (
+  1101→                <div>
+  1102→                  {fonts.map((f) => (
+  1103→                    <button
+  1104→                      key={f.id}
+  1105→                      onClick={() => setSelectedFont(f)}
+  1106→                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#333333]/40 last:border-b-0 ${
+  1107→                        selectedFont?.id === f.id ? "bg-[#2A2A2A]" : "hover:bg-[#2A2A2A]/60"
+  1108→                      }`}
+  1109→                    >
+  1110→                      <div
+  1111→                        className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-lg flex-shrink-0 text-white"
+  1112→                        style={{
+  1113→                          fontFamily: `'${f.family}', sans-serif`,
+  1114→                        }}
+  1115→                      >
+  1116→                        Aa
+  1117→                      </div>
+  1118→                      <div className="flex-1 min-w-0">
+  1119→                        <p className="text-[14px] font-medium truncate text-white">{f.name}</p>
+  1120→                        <div className="flex items-center gap-2 mt-0.5">
+  1121→                          <span className="text-[10px] text-[#606060] capitalize">
+  1122→                            {f.source}
+  1123→                          </span>
+  1124→                          <span className="text-[10px] text-[#606060]/50">
+  1125→                            ·
+  1126→                          </span>
+  1127→                          <span className="text-[10px] text-[#606060]">
+  1128→                            {(() => {
+  1129→                              try {
+  1130→                                return JSON.parse(f.variants).length;
+  1131→                              } catch {
+  1132→                                return 0;
+  1133→                              }
+  1134→                            })()}{" "}
+  1135→                            variants
+  1136→                          </span>
+  1137→                        </div>
+  1138→                      </div>
+  1139→                      <button
+  1140→                        onClick={(e) => {
+  1141→                          e.stopPropagation();
+  1142→                          handleDeleteFont(f.id);
+  1143→                        }}
+  1144→                        className="p-1 rounded hover:bg-red-500/10 transition-all"
+  1145→                      >
+  1146→                        <Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" />
+  1147→                      </button>
+  1148→                    </button>
+  1149→                  ))}
+  1150→                </div>
+  1151→              )}
+  1152→            </ScrollArea>
+  1153→          </div>
+  1154→        </div>
+  1155→
+  1156→        {/* PREVIEW PANEL */}
+  1157→        <div className="flex-1 min-w-0">
+  1158→          {!selectedFont ? (
+  1159→            <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] h-[calc(100vh-380px)] min-h-[300px] flex items-center justify-center">
+  1160→              <div className="text-center px-4">
+  1161→                <Eye className="w-12 h-12 mx-auto text-[#606060] mb-4" />
+  1162→                <h3 className="text-[18px] font-medium text-[#A0A0A0]">
+  1163→                  Select a font to preview
+  1164→                </h3>
+  1165→                <p className="text-[14px] text-[#606060] mt-1">
+  1166→                  Choose a font from the list to see how it looks
+  1167→                </p>
+  1168→              </div>
+  1169→            </div>
+  1170→          ) : (
+  1171→            <div className="border border-[#333333] rounded-xl overflow-hidden bg-[#1E1E1E]">
+  1172→              {/* FONT HEADER */}
+  1173→              <div className="p-5 border-b border-[#333333] bg-[#1A1A1A]">
+  1174→                <div className="flex items-start justify-between mb-3">
+  1175→                  <div>
+  1176→                    <h3
+  1177→                      className="text-[24px] font-bold text-white"
+  1178→                      style={{
+  1179→                        fontFamily: `'${selectedFont.family}', sans-serif`,
+  1180→                      }}
+  1181→                    >
+  1182→                      {selectedFont.name}
+  1183→                    </h3>
+  1184→                    <div className="flex items-center gap-2 mt-1">
+  1185→                      <span className="ds-badge text-[10px] px-3 py-1 bg-[#333333] text-[#A0A0A0] capitalize">
+  1186→                        {selectedFont.source}
+  1187→                      </span>
+  1188→                      <span className="text-[12px] text-[#606060]">
+  1189→                        {variantCount} variant{variantCount !== 1 ? "s" : ""}
+  1190→                      </span>
+  1191→                    </div>
+  1192→                  </div>
+  1193→                  <Tooltip>
+  1194→                    <TooltipTrigger asChild>
+  1195→                      <button
+  1196→                        onClick={() => {
+  1197→                          navigator.clipboard.writeText(
+  1198→                            `font-family: '${selectedFont.family}', sans-serif;`
+  1199→                          );
+  1200→                          toast.success("CSS copied to clipboard!");
+  1201→                        }}
+  1202→                        className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"
+  1203→                      >
+  1204→                        <Copy className="w-4 h-4 text-[#A0A0A0]" />
+  1205→                      </button>
+  1206→                    </TooltipTrigger>
+  1207→                    <TooltipContent>Copy CSS</TooltipContent>
+  1208→                  </Tooltip>
+  1209→                </div>
+  1210→
+  1211→                {/* VARIANTS LIST */}
+  1212→                <div className="flex flex-wrap gap-1.5">
+  1213→                  {uniqueWeights.map((w) => (
+  1214→                    <span
+  1215→                      key={w}
+  1216→                      className="inline-flex items-center px-2.5 py-1 rounded-md bg-[#2A2A2A] border border-[#333333] text-[10px] font-medium text-[#A0A0A0]"
+  1217→                    >
+  1218→                      {(() => {
+  1219→                        const labels: Record<number, string> = {
+  1220→                          100: "Thin",
+  1221→                          200: "ExtraLight",
+  1222→                          300: "Light",
+  1223→                          400: "Regular",
+  1224→                          500: "Medium",
+  1225→                          600: "SemiBold",
+  1226→                          700: "Bold",
+  1227→                          800: "ExtraBold",
+  1228→                          900: "Black",
+  1229→                        };
+  1230→                        return labels[w] || `${w}`;
+  1231→                      })()}
+  1232→                    </span>
+  1233→                  ))}
+  1234→                </div>
+  1235→              </div>
+  1236→
+  1237→              {/* PREVIEW CONTROLS */}
+  1238→              <div className="p-4 border-b border-[#333333] flex flex-col sm:flex-row gap-3">
+  1239→                <div className="relative flex-1">
+  1240→                  <input
+  1241→                    placeholder="Type your own preview text..."
+  1242→                    value={previewText}
+  1243→                    onChange={(e) => setPreviewText(e.target.value)}
+  1244→                    className="w-full px-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+  1245→                  />
+  1246→                </div>
+  1247→                <div className="flex items-center gap-2">
+  1248→                  <span className="text-[12px] text-[#606060] whitespace-nowrap">
+  1249→                    Size
+  1250→                  </span>
+  1251→                  <input
+  1252→                    type="number"
+  1253→                    value={previewSize}
+  1254→                    onChange={(e) => setPreviewSize(parseInt(e.target.value) || 16)}
+  1255→                    className="w-16 px-3 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white text-center outline-none focus:border-[#FF6B35] transition-colors duration-200"
+  1256→                    min={8}
+  1257→                    max={200}
+  1258→                  />
+  1259→                  <span className="text-[12px] text-[#606060]">px</span>
+  1260→                </div>
+  1261→              </div>
+  1262→
+  1263→              {/* PREVIEW AREA */}
+  1264→              <ScrollArea className="h-[calc(100vh-580px)] min-h-[250px]">
+  1265→                <div className="p-6 space-y-8">
+  1266→                  {/* WATERFALL PREVIEW */}
+  1267→                  {uniqueWeights.map((w) => {
+  1268→                    const labels: Record<number, string> = {
+  1269→                      100: "Thin",
+  1270→                      200: "Extra Light",
+  1271→                      300: "Light",
+  1272→                      400: "Regular",
+  1273→                      500: "Medium",
+  1274→                      600: "Semi Bold",
+  1275→                      700: "Bold",
+  1276→                      800: "Extra Bold",
+  1277→                      900: "Black",
+  1278→                    };
+  1279→                    const label = labels[w] || `Weight ${w}`;
+  1280→                    const hasItalic = variants.some(
+  1281→                      (v) => v.weight === w && v.style === "italic"
+  1282→                    );
+  1283→
+  1284→                    return (
+  1285→                      <div key={w}>
+  1286→                        <div className="flex items-center gap-2 mb-2">
+  1287→                          <span className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">
+  1288→                            {label} ({w})
+  1289→                          </span>
+  1290→                          {hasItalic && (
+  1291→                            <span className="text-[10px] text-[#606060]/60">
+  1292→                              · Italic available
+  1293→                            </span>
+  1294→                          )}
+  1295→                        </div>
+  1296→                        <p
+  1297→                          className="leading-tight break-words text-[#FFFFFF]/90"
+  1298→                          style={{
+  1299→                            fontFamily: `'${selectedFont.family}', sans-serif`,
+  1300→                            fontWeight: w,
+  1301→                            fontSize: `${Math.min(previewSize, 96)}px`,
+  1302→                          }}
+  1303→                        >
+  1304→                          {previewText}
+  1305→                        </p>
+  1306→                        {hasItalic && (
+  1307→                          <p
+  1308→                            className="leading-tight break-words text-[#FFFFFF]/70 mt-1"
+  1309→                            style={{
+  1310→                              fontFamily: `'${selectedFont.family}', sans-serif`,
+  1311→                              fontWeight: w,
+  1312→                              fontStyle: "italic",
+  1313→                              fontSize: `${Math.min(previewSize * 0.75, 72)}px`,
+  1314→                            }}
+  1315→                          >
+  1316→                            {previewText}
+  1317→                          </p>
+  1318→                        )}
+  1319→                      </div>
+  1320→                    );
+  1321→                  })}
+  1322→
+  1323→                  {/* ALPHABET PREVIEW */}
+  1324→                  <div>
+  1325→                    <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">
+  1326→                      Alphabet & Numbers
+  1327→                    </p>
+  1328→                    <p
+  1329→                      className="text-2xl leading-relaxed break-words text-[#FFFFFF]/80"
+  1330→                      style={{
+  1331→                        fontFamily: `'${selectedFont.family}', sans-serif`,
+  1332→                        fontWeight: 400,
+  1333→                      }}
+  1334→                    >
+  1335→                      ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  1336→                      <br />
+  1337→                      abcdefghijklmnopqrstuvwxyz
+  1338→                      <br />
+  1339→                      0123456789
+  1340→                      <br />
+  1341→                      !@#$%^&*()_+-=[]{}|;':&quot;,./&lt;&gt;?
+  1342→                    </p>
+  1343→                  </div>
+  1344→
+  1345→                  {/* PARAGRAPH PREVIEW */}
+  1346→                  <div>
+  1347→                    <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">
+  1348→                      Paragraph
+  1349→                    </p>
+  1350→                    <p
+  1351→                      className="text-base leading-relaxed text-[#FFFFFF]/70"
+  1352→                      style={{
+  1353→                        fontFamily: `'${selectedFont.family}', sans-serif`,
+  1354→                        fontWeight: 400,
+  1355→                      }}
+  1356→                    >
+  1357→                      Typography is the art and technique of arranging type to
+  1358→                      make written language legible, readable and appealing when
+  1359→                      displayed. The arrangement of type involves selecting
+  1360→                      typefaces, point sizes, line lengths, line-spacing, and
+  1361→                      letter-spacing, and adjusting the space between pairs of
+  1362→                      letters.
+  1363→                    </p>
+  1364→                  </div>
+  1365→                </div>
+  1366→              </ScrollArea>
+  1367→            </div>
+  1368→          )}
+  1369→        </div>
+  1370→      </div>
+  1371→    </div>
+  1372→  );
+  1373→}

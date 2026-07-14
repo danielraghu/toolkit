@@ -125,3 +125,23 @@ Stage Summary:
 - Logo integrated in header and favicon
 - All components restyled: cards, badges, tabs, inputs, buttons, dialogs, scrollbars
 - Lint clean, compiles successfully
+
+---
+Task ID: 9
+Agent: Main
+Task: Enable CRUD operations for resources (add, edit, delete, favorite)
+
+Work Log:
+- Discovered the /api/resources route was returning 403 for all mutations and reading from static data.ts
+- Rewrote /api/resources/route.ts to use Prisma database for all CRUD operations
+- GET: reads from DB with category/search/favorites filtering, auto-seeds 24 initial resources if DB is empty
+- POST: creates new resource with auto-generated favicon URL and order
+- PUT: updates resource fields (title, url, description, category, tags, isFavorite, etc.)
+- DELETE: removes resource by ID query param
+- Verified via curl: POST creates resource (201), DELETE removes it, PUT toggles favorite
+- Verified via Agent Browser: Add Resource dialog works, resource appears in grid, Delete from menu removes it, Favorite star toggle works
+
+Stage Summary:
+- Full CRUD now operational — users can add, edit, delete, and favorite resources
+- Auto-seed ensures 24 initial resources are always present on first load
+- All verified end-to-end via browser automation
