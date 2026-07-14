@@ -587,10 +587,11 @@ function ResourceCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.2 }}
+      className="h-full"
     >
-      <Card className="group overflow-hidden hover:shadow-md transition-all duration-200 hover:border-foreground/20">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
+      <Card className="group overflow-hidden hover:shadow-md transition-all duration-200 hover:border-foreground/20 h-full flex flex-col">
+        <CardContent className="p-4 flex flex-col flex-1">
+          <div className="flex items-start gap-3 flex-1">
             {/* FAVICON */}
             <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
               {resource.faviconUrl ? (
@@ -626,15 +627,13 @@ function ResourceCard({
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mb-2">{hostname}</p>
-              {resource.description && (
-                <p className="text-xs text-muted-foreground/80 line-clamp-2 mb-2">
-                  {resource.description}
-                </p>
-              )}
-              <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground/80 line-clamp-2 mb-2 min-h-[2.5rem]">
+                {resource.description || "\u00A0"}
+              </p>
+              <div className="flex items-center gap-2 overflow-hidden">
                 <Badge
                   variant="secondary"
-                  className={`text-[10px] px-2 py-0 h-5 font-medium ${getCategoryColor(resource.category)}`}
+                  className={`text-[10px] px-2 py-0 h-5 font-medium shrink-0 ${getCategoryColor(resource.category)}`}
                 >
                   {resource.category}
                 </Badge>
@@ -642,7 +641,7 @@ function ResourceCard({
                   resource.tags.split(",").slice(0, 2).map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] text-muted-foreground/60"
+                      className="text-[10px] text-muted-foreground/60 truncate"
                     >
                       #{tag.trim()}
                     </span>
