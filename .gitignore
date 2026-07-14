@@ -30,12 +30,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (keep .env.example)
+.env
+.env.local
+.env.production
+.env.*.local
 
 # vercel
 .vercel
 
+# database files
+db/*.db
+db/*.db-journal
 
 # typescript
 *.tsbuildinfo
@@ -48,7 +54,18 @@ dev.log
 dev.out.log
 test
 prompt
-
 server.log
+
 # Skills directory
 /skills/
+
+# IDE
+.vscode/
+.idea/
+
+# Agent context
+/agent-ctx/
+worklog.md
+
+# Mini services (not needed for deployment)
+mini-services/
