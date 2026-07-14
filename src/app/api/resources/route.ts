@@ -51,10 +51,22 @@ async function ensureSeeded() {
   }
 }
 
+const DEFAULT_CATEGORIES = ["Design","Assets","Development","AI","Productivity","Reference","Typography","General"];
+
+async function ensureCategories() {
+  const count = await db.category.count();
+  if (count === 0) {
+    for (const name of DEFAULT_CATEGORIES) {
+      await db.category.create({ data: { name } });
+    }
+  }
+}
+
 // GET /api/resources — list resources with filtering
 export async function GET(req: NextRequest) {
   try {
     await ensureSeeded();
+    await ensureCategories();
 
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
@@ -85,12 +97,12 @@ export async function GET(req: NextRequest) {
       orderBy: { order: "asc" },
     });
 
-    // Get distinct categories
-    const allResources = await db.resource.findMany({
-      select: { category: true },
-      distinct: ["category"],
+    // Get categories from the Category model
+    const dbCategories = await db.category.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { name: true },
     });
-    const categories = allResources.map(r => r.category);
+    const categories = dbCategories.map(c => c.name);
 
     return NextResponse.json({ resources, categories });
   } catch (error) {

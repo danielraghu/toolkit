@@ -39,6 +39,12 @@ model Resource {
   updatedAt DateTime @updatedAt
 }
 
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model Font {
   id        String   @id @default(cuid())
   name      String

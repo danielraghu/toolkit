@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   Copy,
   Eye,
+  Settings2,
 } from "lucide-react";
 import {
   Dialog,
@@ -53,6 +54,12 @@ interface Resource {
   isFavorite: boolean;
   order: number;
   createdAt: string;
+}
+
+interface CategoryItem {
+  id: string;
+  name: string;
+  count: number;
 }
 
 interface FontVariant {
@@ -227,6 +234,10 @@ function ResourcesSection() {
   const [formDesc, setFormDesc] = useState("");
   const [formCategory, setFormCategory] = useState("General");
   const [formTags, setFormTags] = useState("");
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [catList, setCatList] = useState<CategoryItem[]>([]);
+  const [newCatName, setNewCatName] = useState("");
+  const [allCatNames, setAllCatNames] = useState<string[]>([]);
 
   const fetchResources = useCallback(async () => {
     try {
@@ -240,6 +251,7 @@ function ResourcesSection() {
       const data = await res.json();
       setResources(data.resources || []);
       setCategories(data.categories || []);
+      setAllCatNames(data.categories || []);
     } catch {
       toast.error("Failed to load resources");
     } finally {
@@ -342,6 +354,63 @@ function ResourcesSection() {
     setFormTags("");
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      setCatList(data.categories || []);
+      const names = (data.categories || []).map((c: CategoryItem) => c.name);
+      setAllCatNames(names);
+      setCategories(names);
+    } catch {
+      toast.error("Failed to load categories");
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      });
+      if (res.status === 409) {
+        toast.error("Category already exists");
+        return;
+      }
+      if (!res.ok) throw new Error();
+      toast.success(`Category "${newCatName.trim()}" added`);
+      setNewCatName("");
+      fetchCategories();
+      fetchResources();
+    } catch {
+      toast.error("Failed to add category");
+    }
+  };
+
+  const handleDeleteCategory = async (cat: CategoryItem) => {
+    try {
+      const msg = cat.count > 0
+        ? `${cat.count} resource${cat.count > 1 ? "s" : ""} will be moved to General.`
+        : "This category has no resources.";
+      if (!confirm(`Delete "${cat.name}"?\n\n${msg}`)) return;
+      await fetch(`/api/categories?id=${cat.id}`, { method: "DELETE" });
+      toast.success(`Category "${cat.name}" deleted`);
+      if (activeCategory === cat.name) setActiveCategory("All");
+      fetchCategories();
+      fetchResources();
+    } catch {
+      toast.error("Failed to delete category");
+    }
+  };
+
+  const openCatDialog = () => {
+    setNewCatName("");
+    fetchCategories();
+    setCatDialogOpen(true);
+  };
+
   const allCategories = ["All", ...categories];
 
   return (
@@ -404,6 +473,13 @@ function ResourcesSection() {
             {cat}
           </button>
         ))}
+        <button
+          onClick={openCatDialog}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 bg-[#2A2A2A] text-[#606060] hover:bg-[#333333] hover:text-[#A0A0A0] border border-dashed border-[#444444]"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          Manage
+        </button>
       </div>
 
       {/* GRID */}
@@ -488,7 +564,13 @@ function ResourcesSection() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1E1E1E] border-[#333333]">
-                  {["Design", "Assets", "Development", "AI", "Productivity", "Reference", "Typography", "General"].map(
+                  {allCatNames.length > 0 ? allCatNames.map(
+                    (c) => (
+                      <SelectItem key={c} value={c} className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">
+                        {getCategoryIcon(c)} {c}
+                      </SelectItem>
+                    )
+                  ) : ["General"].map(
                     (c) => (
                       <SelectItem key={c} value={c} className="text-[#A0A0A0] focus:bg-[#2A2A2A] focus:text-white">
                         {getCategoryIcon(c)} {c}
@@ -520,6 +602,60 @@ function ResourcesSection() {
               >
                 {editItem ? "Save Changes" : "Add Resource"}
               </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MANAGE CATEGORIES DIALOG */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Manage Categories</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 space-y-4">
+            {/* Add new category */}
+            <div className="flex gap-2">
+              <input
+                placeholder="New category name..."
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                className="flex-1 px-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+              <button
+                onClick={handleAddCategory}
+                disabled={!newCatName.trim()}
+                className="px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Category list */}
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {catList.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#2A2A2A] transition-colors group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-sm">{getCategoryIcon(cat.name)}</span>
+                    <span className="text-[14px] text-white truncate">{cat.name}</span>
+                    <span className="text-[11px] text-[#606060]">{cat.count}</span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteCategory(cat)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/10 text-[#606060] hover:text-red-400 transition-all duration-200"
+                    title="Delete category"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {catList.length === 0 && (
+                <p className="text-center text-[14px] text-[#606060] py-6">No categories yet</p>
+              )}
             </div>
           </div>
         </DialogContent>
