@@ -21,7 +21,6 @@ import {
   Eye,
   Settings2,
   Palette,
-  Lock,
   ImageIcon,
   FileText,
   Download,
@@ -183,9 +182,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
         className="w-full max-w-[380px]"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1E1E1E] border border-[#333333] flex items-center justify-center">
-            <Lock className="w-7 h-7 text-[#FF6B35]" />
-          </div>
+          <img src="/lock-icon.png" alt="" className="w-20 h-20 mx-auto mb-4 rounded-2xl" />
           <h1 className="text-[22px] font-bold text-white mb-1">ToolKit</h1>
           <p className="text-[14px] text-[#A0A0A0]">Enter your password to continue</p>
         </div>
