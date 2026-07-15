@@ -217,3 +217,61 @@ Stage Summary:
 - Brand assets: logos (base64), fonts (linked from library), colors (hex), gradients (CSS), PDFs (base64)
 - Tags: clickable filter pills, all-tags extraction from resources, form suggestions
 - Live site verified: auth, brand-assets, resources, page HTML all working
+---
+Task ID: 11
+Agent: Main
+Task: Replace BrandAssetsSection with profile-based brand assets system
+
+Work Log:
+- Added `BrandProfile` interface at line 96 (id, name, primaryLogo, order, createdAt, _count)
+- Updated `BrandAsset` interface at line 105 to include `profileId: string | null`
+- Replaced entire BrandAssetsSection function (was lines 718-1212, ~494 lines) with new profile-based component (~1035 lines)
+- New component has two views:
+  - Profile List View: grid of brand profile cards (2/3/4 cols responsive), Add Brand button, empty state
+  - Profile Detail View: back navigation, profile header with edit/delete, sub-tabs (Logos/Fonts/Colors/Gradients/PDFs) with counts
+- Each sub-section: Logos (grid with download/delete), Fonts (list with font preview, Copy CSS, picker from /api/fonts), Colors (grid with copy hex/delete), Gradients (grid with Copy CSS/delete), PDFs (list with file size, download/delete)
+- Create/Edit Profile Dialogs: brand name input, file upload for primary logo (base64), preview
+- All dialogs: Add Logo, Add Color (hex validation), Add Gradient (CSS preview), Add PDF, Font Picker (search, already-linked detection)
+- Uses useCallback for fetchProfiles/fetchAssets, useEffect for initial data loading
+- Download via anchor element with data URI; Copy via navigator.clipboard.writeText + toast
+- All file inputs reset after use (e.target.value = "")
+- Dark theme consistent: #1E1E1E cards, #2A2A2A inputs, #FF6B35 accent, #333333 borders
+- File grew from ~1545 lines to 2091 lines
+- Lint clean for src/ files (no errors in page.tsx)
+- Dev server compiles successfully; 500 on /api/brand-profiles expected (backend not yet created)
+
+Stage Summary:
+- BrandAssetsSection fully replaced with profile-based system
+- Frontend-only change; no other components or imports modified
+- Backend API endpoints (brand-profiles, brand-assets with profileId) need to be created separately
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Make Brand Assets profile-based with downloadable assets and copyable colors/gradients
+
+Work Log:
+- Read existing Prisma schema, API routes, and BrandAssetsSection component
+- Updated Prisma schema: added BrandProfile model (name, primaryLogo, order), added profileId FK to BrandAsset with onDelete: SetNull
+- Pushed schema to SQLite database with db:push
+- Created /api/brand-profiles/route.ts with full CRUD (GET list with asset counts, POST create, PUT update, DELETE with orphan cleanup)
+- Updated /api/brand-assets/route.ts to support profileId filter on GET and profileId on POST/PUT
+- Rewrote BrandAssetsSection component (~500 lines → ~1000 lines) with:
+  - Profile List View: responsive grid of brand profile cards with logo/placeholder, asset count badge, Add Brand button, empty state
+  - Profile Detail View: back button, editable header, 5 pill sub-tabs (Logos/Fonts/Colors/Gradients/PDFs with counts)
+  - Logos: grid with image, name, download button, delete button
+  - Brand Fonts: list rows with font preview, copy CSS, delete; font picker dialog from /api/fonts
+  - Colors: grid with swatch, name, hex, COPY button (clipboard+toast), delete
+  - Gradients: grid with preview, name, Copy CSS button, delete
+  - PDFs: list rows with file icon, name, size, DOWNLOAD button, delete
+  - Create/Edit Profile dialogs with name input, logo upload, preview
+- Verified all APIs work (brand-profiles CRUD, brand-assets with profileId filter)
+- Browser-tested: tab navigation, profile list view, create dialog, profile detail view with sub-tabs
+- Cleaned up test data
+
+Stage Summary:
+- Brand Assets is now fully profile-based
+- Each brand profile shows Logos, Fonts, Colors, Gradients, PDFs sub-sections
+- Colors and gradients have easy copy buttons
+- Logos and PDFs have easy download buttons
+- All changes backward-compatible (existing orphan assets show profileId: null)
