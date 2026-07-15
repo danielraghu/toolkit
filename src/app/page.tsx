@@ -1764,6 +1764,8 @@ function FontsSection() {
   const [googleFonts, setGoogleFonts] = useState<GoogleFontResult[]>([]);
   const [googleSearch, setGoogleSearch] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [configuringFont, setConfiguringFont] = useState<GoogleFontResult | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [loadedFontFamilies, setLoadedFontFamilies] = useState<Set<string>>(new Set());
   const [filterSource, setFilterSource] = useState("All");
   const [uploadName, setUploadName] = useState("");
@@ -1826,12 +1828,47 @@ function FontsSection() {
 
   useEffect(() => { if (showGoogleBrowser) fetchGoogleFonts(); }, [showGoogleBrowser]);
 
-  const addGoogleFont = async (gf: GoogleFontResult) => {
+  const addGoogleFont = (gf: GoogleFontResult) => {
+    let variants: string[] = [];
+    try { variants = JSON.parse(gf.variants); } catch {}
+    setConfiguringFont(gf);
+    setSelectedVariants(variants.length > 0 ? [variants[0]] : []);
+  };
+
+  const toggleVariant = (v: string) => {
+    setSelectedVariants((prev) =>
+      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+    );
+  };
+
+  const selectAllVariants = () => {
+    if (!configuringFont) return;
+    let all: string[] = [];
+    try { all = JSON.parse(configuringFont.variants); } catch {}
+    setSelectedVariants(all);
+  };
+
+  const confirmAddGoogleFont = async () => {
+    if (!configuringFont || selectedVariants.length === 0) { toast.error("Select at least one variant"); return; }
     try {
-      const res = await fetch("/api/fonts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: gf.name, family: gf.family, source: "google", variants: gf.variants }) });
-      const font = await res.json();
-      setFonts((prev) => [font, ...prev]);
-      toast.success(`Added "${gf.family}" to your collection`);
+      const res = await fetch("/api/fonts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: configuringFont.name, family: configuringFont.family, source: "google", variants: JSON.stringify(selectedVariants) }),
+      });
+      if (res.status === 409) {
+        toast.error("This font is already in your collection");
+        return;
+      }
+      const data = await res.json();
+      if (res.ok) {
+        setFonts((prev) => [data.font, ...prev]);
+        toast.success(`Added "${configuringFont.family}" with ${selectedVariants.length} variant${selectedVariants.length > 1 ? "s" : ""}`);
+        setConfiguringFont(null);
+        setSelectedVariants([]);
+      } else {
+        toast.error(data.error || "Failed to add font");
+      }
     } catch { toast.error("Failed to add font"); }
   };
 
@@ -1854,7 +1891,7 @@ function FontsSection() {
 
   const handleDownloadFont = (font: FontItem) => {
     if (font.source === "google") {
-      window.open(`https://fonts.google.com/download?family=${encodeURIComponent(font.family)}`, "_blank");
+      window.open(`https://fonts.google.com/specimen/${encodeURIComponent(font.family)}`, "_blank");
     } else if (font.filePath) {
       const link = document.createElement("a");
       link.href = font.filePath;
@@ -1932,6 +1969,61 @@ function FontsSection() {
           </Dialog>
         </div>
       </div>
+
+      {/* VARIANT SELECTION DIALOG */}
+      <Dialog open={!!configuringFont} onOpenChange={(o) => { if (!o) { setConfiguringFont(null); setSelectedVariants([]); } }}>
+        <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Select Variants</DialogTitle>
+          </DialogHeader>
+          {configuringFont && (
+            <div className="space-y-4 mt-2">
+              <div className="flex items-center gap-3 p-3 bg-[#2A2A2A] rounded-lg">
+                <div className="w-10 h-10 rounded-lg bg-[#333333] flex items-center justify-center text-xl text-white flex-shrink-0" style={{ fontFamily: `'${configuringFont.family}', sans-serif` }}>Aa</div>
+                <div>
+                  <p className="text-[16px] font-semibold text-white">{configuringFont.family}</p>
+                  <p className="text-[12px] text-[#606060] capitalize">{configuringFont.category}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] text-[#A0A0A0]">Choose variants to include</p>
+                <button onClick={selectAllVariants} className="text-[12px] text-[#FF6B35] hover:text-[#FF5722] font-medium transition-colors">Select All</button>
+              </div>
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {(() => {
+                    let allV: string[] = [];
+                    try { allV = JSON.parse(configuringFont.variants); } catch {}
+                    const weightLabels: Record<number, string> = { 100: "Thin", 200: "ExtraLight", 300: "Light", 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
+                    return allV.map((v) => {
+                      const num = v.match(/\d+/);
+                      const w = num ? parseInt(num[0]) : 400;
+                      const isItalic = v.includes("italic");
+                      const label = `${weightLabels[w] || w}${isItalic ? " Italic" : ""} (${v})`;
+                      const checked = selectedVariants.includes(v);
+                      return (
+                        <button key={v} onClick={() => toggleVariant(v)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${checked ? "bg-[#FF6B35]/10 border border-[#FF6B35]/30" : "hover:bg-[#2A2A2A] border border-transparent"}`}>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-[#FF6B35] border-[#FF6B35]" : "border-[#555555]"}`}>
+                            {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                          </div>
+                          <span className={`text-[14px] ${checked ? "text-white font-medium" : "text-[#A0A0A0]"}`}>{label}</span>
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </ScrollArea>
+              <p className="text-[11px] text-[#606060]">{selectedVariants.length} variant{selectedVariants.length !== 1 ? "s" : ""} selected</p>
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => { setConfiguringFont(null); setSelectedVariants([]); }} className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all">Cancel</button>
+                <button onClick={confirmAddGoogleFont} disabled={selectedVariants.length === 0} className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all">
+                  Add Font{selectedVariants.length > 0 ? ` (${selectedVariants.length})` : ""}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* GOOGLE FONTS BROWSER */}
       <AnimatePresence>
@@ -2018,7 +2110,7 @@ function FontsSection() {
                           <TooltipTrigger asChild>
                             <button onClick={(e) => { e.stopPropagation(); handleDownloadFont(f); }} className="p-1 rounded hover:bg-[#2A2A2A] transition-all"><Download className="w-3.5 h-3.5 text-[#606060] hover:text-[#A0A0A0]" /></button>
                           </TooltipTrigger>
-                          <TooltipContent>{f.source === "google" ? "Download from Google" : "Download Font"}</TooltipContent>
+                          <TooltipContent>{f.source === "google" ? "View on Google Fonts" : "Download Font"}</TooltipContent>
                         </Tooltip>
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteFont(f.id); }} className="p-1 rounded hover:bg-red-500/10 transition-all"><Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" /></button>
                       </div>
@@ -2057,7 +2149,7 @@ function FontsSection() {
                       <TooltipTrigger asChild>
                         <button onClick={() => handleDownloadFont(selectedFont)} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Download className="w-4 h-4 text-[#A0A0A0]" /></button>
                       </TooltipTrigger>
-                      <TooltipContent>{selectedFont.source === "google" ? "Download from Google Fonts" : "Download Font File"}</TooltipContent>
+                      <TooltipContent>{selectedFont.source === "google" ? "View on Google Fonts" : "Download Font File"}</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
