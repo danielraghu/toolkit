@@ -1852,6 +1852,17 @@ function FontsSection() {
     e.target.value = "";
   };
 
+  const handleDownloadFont = (font: FontItem) => {
+    if (font.source === "google") {
+      window.open(`https://fonts.google.com/download?family=${encodeURIComponent(font.family)}`, "_blank");
+    } else if (font.filePath) {
+      const link = document.createElement("a");
+      link.href = font.filePath;
+      link.download = `${font.family.replace(/\s+/g, "-")}.ttf`;
+      link.click();
+    }
+  };
+
   const handleDeleteFont = async (id: string) => {
     try {
       await fetch(`/api/fonts?id=${id}`, { method: "DELETE" });
@@ -2002,7 +2013,15 @@ function FontsSection() {
                           <span className="text-[10px] text-[#606060]">{(() => { try { return JSON.parse(f.variants).length; } catch { return 0; } })()} variants</span>
                         </div>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteFont(f.id); }} className="p-1 rounded hover:bg-red-500/10 transition-all"><Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" /></button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button onClick={(e) => { e.stopPropagation(); handleDownloadFont(f); }} className="p-1 rounded hover:bg-[#2A2A2A] transition-all"><Download className="w-3.5 h-3.5 text-[#606060] hover:text-[#A0A0A0]" /></button>
+                          </TooltipTrigger>
+                          <TooltipContent>{f.source === "google" ? "Download from Google" : "Download Font"}</TooltipContent>
+                        </Tooltip>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFont(f.id); }} className="p-1 rounded hover:bg-red-500/10 transition-all"><Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" /></button>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -2027,12 +2046,20 @@ function FontsSection() {
                       <span className="text-[12px] text-[#606060]">{variantCount} variant{variantCount !== 1 ? "s" : ""}</span>
                     </div>
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button onClick={() => { navigator.clipboard.writeText(`font-family: '${selectedFont.family}', sans-serif;`); toast.success("CSS copied to clipboard!"); }} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Copy className="w-4 h-4 text-[#A0A0A0]" /></button>
-                    </TooltipTrigger>
-                    <TooltipContent>Copy CSS</TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => { navigator.clipboard.writeText(`font-family: '${selectedFont.family}', sans-serif;`); toast.success("CSS copied to clipboard!"); }} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Copy className="w-4 h-4 text-[#A0A0A0]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy CSS</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => handleDownloadFont(selectedFont)} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Download className="w-4 h-4 text-[#A0A0A0]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>{selectedFont.source === "google" ? "Download from Google Fonts" : "Download Font File"}</TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {uniqueWeights.map((w) => (
