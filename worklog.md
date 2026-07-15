@@ -168,3 +168,52 @@ Stage Summary:
 - Build command: `bun install && bun run build`
 - Start command: `DATABASE_URL=file:./toolkit.db npx prisma db push --skip-generate && DATABASE_URL=file:./toolkit.db npx next start`
 - Note: data is ephemeral across redeploys (Render free tier limitation), auto-seed restores defaults
+---
+Task ID: 6
+Agent: full-stack-developer
+Task: Rewrite page.tsx with password gate, brand assets section, and tag improvements
+
+Work Log:
+- Read existing page.tsx (1513 lines) to understand all current functionality
+- Wrote password gate component with session storage persistence (default: nem2024)
+- Added Brand Assets tab with 5 sub-sections (Logos, Brand Fonts, Colors, Gradients, PDFs)
+- Added tag filtering system with clickable tag pills in Resources section
+- Added tag suggestions in add/edit resource dialog
+- Preserved all existing Resources and Fonts functionality
+- Fixed lint error (react-hooks/set-state-in-effect) by using lazy initializer for auth state
+- Lint passes clean, dev server compiles successfully
+
+Stage Summary:
+- page.tsx rewritten with all 5 requested features
+- Password default: nem2024
+- Brand assets stored via /api/brand-assets API
+- Tags are clickable filter pills in resources section
+- Tag suggestions appear below tags input in add/edit dialog
+---
+Task ID: 1-8
+Agent: main
+Task: Add Brand Assets section, password protection, tag filtering, and font linking
+
+Work Log:
+- Updated Prisma schema: added BrandAsset model (type, name, value, metadata), removed unused User/Post models
+- Pushed schema to SQLite DB, regenerated Prisma client
+- Created /api/brand-assets route with full CRUD (GET supports ?type= filter)
+- Created /api/auth route for password verification (default: nem2024)
+- Updated /api/resources to support ?tag= filter and return allTags array
+- Rewrote page.tsx (1545 lines) with:
+  - Password gate component with session storage persistence
+  - Brand Assets tab with 5 sections: Logos, Brand Fonts, Colors, Gradients, PDFs
+  - Font linking from font library to brand assets
+  - Tag-based filtering with clickable tag pills on resources
+  - Tag suggestions in add/edit resource dialog
+  - Preserved all existing Resources and Fonts functionality
+- Added output: "standalone" to next.config.ts for Render deployment
+- Updated Render start command with TOOLKIT_PASSWORD env var
+- Pushed to GitHub and verified live deployment at https://toolkitv1.onrender.com/
+
+Stage Summary:
+- All 5 requested features implemented and deployed
+- Password: nem2024 (configurable via TOOLKIT_PASSWORD env var)
+- Brand assets: logos (base64), fonts (linked from library), colors (hex), gradients (CSS), PDFs (base64)
+- Tags: clickable filter pills, all-tags extraction from resources, form suggestions
+- Live site verified: auth, brand-assets, resources, page HTML all working
