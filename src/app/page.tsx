@@ -93,6 +93,15 @@ interface GoogleFontResult {
   files?: Record<string, string>;
 }
 
+interface BrandProfile {
+  id: string;
+  name: string;
+  primaryLogo: string;
+  order: number;
+  createdAt: string;
+  _count?: { assets: number };
+}
+
 interface BrandAsset {
   id: string;
   type: string;
@@ -100,6 +109,7 @@ interface BrandAsset {
   value: string;
   metadata: string;
   order: number;
+  profileId: string | null;
   createdAt: string;
 }
 
@@ -182,7 +192,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
         className="w-full max-w-[380px]"
       >
         <div className="text-center mb-8">
-          <img src="/lock-icon.png" alt="" className="w-20 h-20 mx-auto mb-4 rounded-2xl" />
+          <img src="/logo.svg" alt="ToolKit" className="w-20 h-20 mx-auto mb-4" />
           <h1 className="text-[22px] font-bold text-white mb-1">ToolKit</h1>
           <p className="text-[14px] text-[#A0A0A0]">Enter your password to continue</p>
         </div>
@@ -708,494 +718,1035 @@ function ResourceCard({ resource, onFavorite, onEdit, onDelete, onTagClick }: { 
 // ===================== BRAND ASSETS SECTION =====================
 
 function BrandAssetsSection() {
-  const [assets, setAssets] = useState<BrandAsset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fonts, setFonts] = useState<FontItem[]>([]);
+  // Profile state
+  const [profiles, setProfiles] = useState<BrandProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  // Logo dialog
+  // Assets state (for selected profile)
+  const [assets, setAssets] = useState<BrandAsset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+
+  // Sub-tab
+  const [activeTab, setActiveTab] = useState<string>("logos");
+
+  // Profile dialogs
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileLogo, setProfileLogo] = useState("");
+  const [profileLogoPreview, setProfileLogoPreview] = useState("");
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Font picker for brand fonts
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
+  const [fontSearch, setFontSearch] = useState("");
+  const [fontList, setFontList] = useState<FontItem[]>([]);
+
+  // Asset dialogs
   const [logoDialogOpen, setLogoDialogOpen] = useState(false);
   const [logoName, setLogoName] = useState("");
-
-  // Font link dialog
-  const [fontDialogOpen, setFontDialogOpen] = useState(false);
-
-  // Color dialog
   const [colorDialogOpen, setColorDialogOpen] = useState(false);
   const [colorName, setColorName] = useState("");
   const [colorValue, setColorValue] = useState("#");
-
-  // Gradient dialog
   const [gradientDialogOpen, setGradientDialogOpen] = useState(false);
   const [gradientName, setGradientName] = useState("");
   const [gradientValue, setGradientValue] = useState("linear-gradient(135deg, #667eea 0%, #764ba2 100%)");
-
-  // PDF dialog
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfName, setPdfName] = useState("");
 
-  const fetchAssets = useCallback(async () => {
+  // Selected profile helper
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
+
+  // Fetch profiles
+  const fetchProfiles = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await fetch("/api/brand-assets?type=all");
+      setProfileLoading(true);
+      const res = await fetch("/api/brand-profiles");
+      const data = await res.json();
+      setProfiles(data.profiles || []);
+    } catch {
+      toast.error("Failed to load brand profiles");
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  // Fetch assets for a profile
+  const fetchAssets = useCallback(async (profileId: string) => {
+    try {
+      setAssetsLoading(true);
+      const res = await fetch(`/api/brand-assets?profileId=${profileId}`);
       const data = await res.json();
       setAssets(data.assets || []);
     } catch {
-      toast.error("Failed to load brand assets");
+      toast.error("Failed to load assets");
     } finally {
-      setLoading(false);
+      setAssetsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAssets();
-  }, [fetchAssets]);
+    fetchProfiles();
+  }, [fetchProfiles]);
 
-  const fetchFonts = async () => {
+  useEffect(() => {
+    if (selectedProfileId) {
+      fetchAssets(selectedProfileId);
+      setActiveTab("logos");
+    }
+  }, [selectedProfileId, fetchAssets]);
+
+  // Filtered assets by tab
+  const logos = assets.filter((a) => a.type === "logo");
+  const brandFonts = assets.filter((a) => a.type === "font");
+  const colors = assets.filter((a) => a.type === "color");
+  const gradients = assets.filter((a) => a.type === "gradient");
+  const pdfs = assets.filter((a) => a.type === "pdf");
+
+  // Profile CRUD
+  const handleCreateProfile = async () => {
+    if (!profileName.trim()) { toast.error("Please enter a brand name"); return; }
     try {
-      const res = await fetch("/api/fonts");
+      const res = await fetch("/api/brand-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profileName.trim(), primaryLogo: profileLogo }),
+      });
       const data = await res.json();
-      setFonts(data.fonts || []);
-    } catch { /* ignore */ }
+      if (res.ok) {
+        setProfiles((prev) => [...prev, data.profile]);
+        toast.success(`Brand "${profileName.trim()}" created`);
+        setCreateDialogOpen(false);
+        setProfileName("");
+        setProfileLogo("");
+        setProfileLogoPreview("");
+      } else {
+        toast.error(data.error || "Failed to create brand");
+      }
+    } catch {
+      toast.error("Failed to create brand");
+    }
   };
 
-  const deleteAsset = async (id: string) => {
+  const handleEditProfile = async () => {
+    if (!selectedProfileId || !profileName.trim()) return;
+    try {
+      const res = await fetch("/api/brand-profiles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedProfileId, name: profileName.trim(), primaryLogo: profileLogo }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setProfiles((prev) => prev.map((p) => p.id === selectedProfileId ? { ...p, ...data.profile } : p));
+        toast.success("Brand updated");
+        setEditDialogOpen(false);
+      } else {
+        toast.error(data.error || "Failed to update brand");
+      }
+    } catch {
+      toast.error("Failed to update brand");
+    }
+  };
+
+  const handleDeleteProfile = async (id: string) => {
+    try {
+      await fetch(`/api/brand-profiles?id=${id}`, { method: "DELETE" });
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      if (selectedProfileId === id) {
+        setSelectedProfileId(null);
+        setAssets([]);
+      }
+      toast.success("Brand deleted");
+    } catch {
+      toast.error("Failed to delete brand");
+    }
+  };
+
+  // Logo upload for profile
+  const handleProfileLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setProfileLogo(base64);
+      setProfileLogoPreview(base64);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Open edit dialog
+  const openEditDialog = () => {
+    if (!selectedProfile) return;
+    setProfileName(selectedProfile.name);
+    setProfileLogo(selectedProfile.primaryLogo);
+    setProfileLogoPreview(selectedProfile.primaryLogo);
+    setEditDialogOpen(true);
+  };
+
+  // Asset CRUD helpers
+  const handleAddAsset = async (type: string, name: string, value: string, metadata: string = "") => {
+    if (!selectedProfileId) return;
+    try {
+      const res = await fetch("/api/brand-assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, name, value, metadata, profileId: selectedProfileId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAssets((prev) => [...prev, data.asset]);
+        toast.success(`Added "${name}"`);
+      } else {
+        toast.error(data.error || "Failed to add asset");
+      }
+    } catch {
+      toast.error("Failed to add asset");
+    }
+  };
+
+  const handleDeleteAsset = async (id: string) => {
     try {
       await fetch(`/api/brand-assets?id=${id}`, { method: "DELETE" });
+      setAssets((prev) => prev.filter((a) => a.id !== id));
       toast.success("Asset removed");
-      fetchAssets();
     } catch {
-      toast.error("Failed to delete");
+      toast.error("Failed to delete asset");
     }
   };
 
-  // ---- LOGO HANDLERS ----
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !logoName.trim()) {
-      if (!logoName.trim()) toast.error("Please enter a name");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      try {
-        await fetch("/api/brand-assets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "logo", name: logoName.trim(), value: base64, metadata: { mimeType: file.type, size: file.size } }),
-        });
-        toast.success("Logo added");
-        setLogoDialogOpen(false);
-        setLogoName("");
-        fetchAssets();
-      } catch { toast.error("Failed to upload logo"); }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  // Download helper (for logos and PDFs)
+  const handleDownload = (value: string, name: string) => {
+    const a = document.createElement("a");
+    a.href = value;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
-  // ---- FONT LINK HANDLERS ----
-  const handleLinkFont = async (font: FontItem) => {
-    try {
-      await fetch("/api/brand-assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "font", name: font.name, value: font.id, metadata: { family: font.family, source: font.source } }),
-      });
-      toast.success(`"${font.name}" linked to brand`);
-      setFontDialogOpen(false);
-      fetchAssets();
-    } catch { toast.error("Failed to link font"); }
-  };
-
-  // ---- COLOR HANDLERS ----
-  const handleAddColor = async () => {
-    if (!colorName.trim() || !colorValue.trim()) { toast.error("Name and color are required"); return; }
-    try {
-      await fetch("/api/brand-assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "color", name: colorName.trim(), value: colorValue.trim() }),
-      });
-      toast.success("Color added");
-      setColorDialogOpen(false);
-      setColorName("");
-      setColorValue("#");
-      fetchAssets();
-    } catch { toast.error("Failed to add color"); }
-  };
-
-  // ---- GRADIENT HANDLERS ----
-  const handleAddGradient = async () => {
-    if (!gradientName.trim() || !gradientValue.trim()) { toast.error("Name and gradient are required"); return; }
-    try {
-      await fetch("/api/brand-assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "gradient", name: gradientName.trim(), value: gradientValue.trim() }),
-      });
-      toast.success("Gradient added");
-      setGradientDialogOpen(false);
-      setGradientName("");
-      setGradientValue("linear-gradient(135deg, #667eea 0%, #764ba2 100%)");
-      fetchAssets();
-    } catch { toast.error("Failed to add gradient"); }
-  };
-
-  // ---- PDF HANDLERS ----
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !pdfName.trim()) {
-      if (!pdfName.trim()) toast.error("Please enter a name");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
-      try {
-        await fetch("/api/brand-assets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "pdf", name: pdfName.trim(), value: base64, metadata: { mimeType: "application/pdf", size: file.size } }),
-        });
-        toast.success("PDF uploaded");
-        setPdfDialogOpen(false);
-        setPdfName("");
-        fetchAssets();
-      } catch { toast.error("Failed to upload PDF"); }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const downloadPdf = (asset: BrandAsset) => {
-    const link = document.createElement("a");
-    link.href = asset.value;
-    link.download = asset.name + ".pdf";
-    link.click();
-  };
-
-  const logos = assets.filter(a => a.type === "logo");
-  const brandFonts = assets.filter(a => a.type === "font");
-  const colors = assets.filter(a => a.type === "color");
-  const gradients = assets.filter(a => a.type === "gradient");
-  const pdfs = assets.filter(a => a.type === "pdf");
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / 1048576).toFixed(1) + " MB";
-  };
-
-  const copyToClipboard = (text: string) => {
+  // Copy helper
+  const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    toast.success(`${label} copied to clipboard`);
   };
 
+  // File size formatter
+  const formatFileSize = (base64: string) => {
+    try {
+      const bytes = Math.round((base64.length - base64.indexOf(",") - 1) * 0.75);
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    } catch {
+      return "";
+    }
+  };
+
+  // Font picker
+  const fetchFontList = useCallback(async (search: string = "") => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/fonts?${params}`);
+      const data = await res.json();
+      setFontList(data.fonts || []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (fontPickerOpen) fetchFontList(fontSearch);
+  }, [fontPickerOpen, fontSearch, fetchFontList]);
+
+  // Logo file upload handler
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      handleAddAsset("logo", logoName.trim() || file.name, base64, file.type);
+      setLogoName("");
+      setLogoDialogOpen(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // PDF file upload handler
+  const handlePdfFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      handleAddAsset("pdf", pdfName.trim() || file.name, base64, file.type);
+      setPdfName("");
+      setPdfDialogOpen(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Sub-tab config
+  const tabs = [
+    { key: "logos", label: "Logos", icon: ImageIcon, count: logos.length },
+    { key: "fonts", label: "Fonts", icon: Type, count: brandFonts.length },
+    { key: "colors", label: "Colors", icon: Palette, count: colors.length },
+    { key: "gradients", label: "Gradients", icon: Settings2, count: gradients.length },
+    { key: "pdfs", label: "PDFs", icon: FileText, count: pdfs.length },
+  ];
+
+  // ==================== PROFILE LIST VIEW ====================
+  if (!selectedProfileId) {
+    return (
+      <motion.div
+        key="brand-profiles"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -12 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-[1200px] mx-auto px-6 py-8"
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Brand Assets</h2>
+            <p className="text-[14px] text-[#A0A0A0] mt-1" style={{ lineHeight: 1.5 }}>
+              {profiles.length} brand{profiles.length !== 1 ? "s" : ""} in your collection
+            </p>
+          </div>
+          <button
+            onClick={() => { setProfileName(""); setProfileLogo(""); setProfileLogoPreview(""); setCreateDialogOpen(true); }}
+            className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+          >
+            <Plus className="w-4 h-4" />Add Brand
+          </button>
+        </div>
+
+        {profileLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-6">
+                <Skeleton className="w-16 h-16 rounded-xl bg-[#333333] mx-auto mb-4" />
+                <Skeleton className="h-5 w-24 bg-[#333333] mx-auto mb-2" />
+                <Skeleton className="h-3 w-16 bg-[#333333] mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : profiles.length === 0 ? (
+          <div className="text-center py-20">
+            <FolderOpen className="w-14 h-14 mx-auto text-[#606060] mb-4" />
+            <h3 className="text-[18px] font-medium text-[#A0A0A0] mb-2">No brands yet</h3>
+            <p className="text-[14px] text-[#606060] mb-6">Create your first brand profile to start organizing assets</p>
+            <button
+              onClick={() => { setProfileName(""); setProfileLogo(""); setProfileLogoPreview(""); setCreateDialogOpen(true); }}
+              className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+            >
+              <Plus className="w-4 h-4" />Create Your First Brand
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {profiles.map((profile) => (
+              <motion.button
+                key={profile.id}
+                onClick={() => setSelectedProfileId(profile.id)}
+                className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-6 text-left hover:border-[#FF6B35]/40 transition-all duration-200 group"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="w-16 h-16 rounded-xl bg-[#2A2A2A] border border-[#333333] flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                  {profile.primaryLogo ? (
+                    <img src={profile.primaryLogo} alt={profile.name} className="w-full h-full object-contain p-2" />
+                  ) : (
+                    <ImageIcon className="w-7 h-7 text-[#606060] group-hover:text-[#FF6B35] transition-colors" />
+                  )}
+                </div>
+                <h3 className="text-[15px] font-semibold text-white text-center mb-2 truncate">{profile.name}</h3>
+                <div className="flex justify-center">
+                  <span className="ds-badge text-[11px] px-3 py-1 bg-[#333333] text-[#A0A0A0] rounded-full">
+                    {profile._count?.assets || 0} asset{(profile._count?.assets || 0) !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        )}
+
+        {/* Create Profile Dialog */}
+        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">Create Brand Profile</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-5 mt-2">
+              <div className="space-y-2">
+                <label className="text-[14px] font-medium text-[#A0A0A0]">Brand Name</label>
+                <input
+                  placeholder="e.g. Acme Corp"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateProfile()}
+                  className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[14px] font-medium text-[#A0A0A0]">Primary Logo</label>
+                <div className="border-2 border-dashed border-[#333333] rounded-lg p-6 text-center hover:border-[#FF6B35]/40 transition-colors">
+                  {profileLogoPreview ? (
+                    <div className="space-y-3">
+                      <img src={profileLogoPreview} alt="Preview" className="w-20 h-20 object-contain mx-auto" />
+                      <button
+                        onClick={() => { setProfileLogo(""); setProfileLogoPreview(""); }}
+                        className="text-[12px] text-[#A0A0A0] hover:text-red-400 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+                      <p className="text-[13px] text-[#A0A0A0] mb-3">PNG, JPG, SVG, or WebP</p>
+                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
+                        Choose File
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                          className="hidden"
+                          onChange={handleProfileLogoUpload}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setCreateDialogOpen(false)}
+                className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateProfile}
+                className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+              >
+                Create Brand
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </motion.div>
+    );
+  }
+
+  // ==================== PROFILE DETAIL VIEW ====================
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-8 space-y-10">
-      {/* HEADER */}
-      <div>
-        <h2 className="text-[24px] font-bold tracking-tight text-white" style={{ lineHeight: 1.2 }}>Brand Assets</h2>
-        <p className="text-[14px] text-[#A0A0A0] mt-1">Manage your brand identity — logos, fonts, colors, gradients, and brand guides</p>
+    <motion.div
+      key="brand-detail"
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-[1200px] mx-auto px-6 py-8"
+    >
+      {/* Profile Header */}
+      <div className="flex items-start gap-4 mb-6">
+        <button
+          onClick={() => setSelectedProfileId(null)}
+          className="p-2.5 rounded-lg bg-[#1E1E1E] border border-[#333333] hover:bg-[#2A2A2A] transition-colors mt-1"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-[#A0A0A0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div className="w-12 h-12 rounded-xl bg-[#2A2A2A] border border-[#333333] flex items-center justify-center overflow-hidden flex-shrink-0">
+          {selectedProfile?.primaryLogo ? (
+            <img src={selectedProfile.primaryLogo} alt={selectedProfile.name} className="w-full h-full object-contain p-1.5" />
+          ) : (
+            <ImageIcon className="w-5 h-5 text-[#606060]" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-[24px] font-bold tracking-tight text-white truncate" style={{ lineHeight: 1.2 }}>{selectedProfile?.name}</h2>
+          <p className="text-[14px] text-[#A0A0A0] mt-1">{assets.length} asset{assets.length !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <button
+            onClick={openEditDialog}
+            className="p-2.5 rounded-lg bg-[#1E1E1E] border border-[#333333] hover:bg-[#2A2A2A] transition-colors"
+          >
+            <Edit3 className="w-4 h-4 text-[#A0A0A0]" />
+          </button>
+          <button
+            onClick={() => { if (selectedProfileId && confirm("Delete this brand and all its assets?")) handleDeleteProfile(selectedProfileId); }}
+            className="p-2.5 rounded-lg bg-[#1E1E1E] border border-[#333333] hover:bg-red-500/10 hover:border-red-500/30 transition-colors"
+          >
+            <Trash2 className="w-4 h-4 text-[#A0A0A0] hover:text-red-400" />
+          </button>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="space-y-8">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full bg-[#1E1E1E] rounded-xl" />)}
+      {/* Sub-tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium whitespace-nowrap transition-all duration-200 ${
+              activeTab === tab.key
+                ? "bg-[#FF6B35] text-white"
+                : "bg-[#1E1E1E] text-[#A0A0A0] border border-[#333333] hover:bg-[#2A2A2A] hover:text-white"
+            }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+            <span className={`text-[11px] px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-white/20" : "bg-[#333333]"}`}>
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {assetsLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-5">
+              <Skeleton className="w-full h-24 rounded-lg bg-[#333333] mb-3" />
+              <Skeleton className="h-4 w-20 bg-[#333333]" />
+            </div>
+          ))}
         </div>
       ) : (
         <>
-          {/* ---- LOGOS ---- */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center"><ImageIcon className="w-4 h-4 text-[#FF6B35]" /></div>
-                <h3 className="text-[18px] font-semibold text-white">Logos</h3>
-                <span className="text-[12px] text-[#606060] bg-[#2A2A2A] px-2 py-0.5 rounded-full">{logos.length}</span>
+          {/* ===== LOGOS TAB ===== */}
+          {activeTab === "logos" && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[16px] font-semibold text-white">Logos</h3>
+                <button
+                  onClick={() => { setLogoName(""); setLogoDialogOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-medium transition-all duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add Logo
+                </button>
               </div>
-              <Dialog open={logoDialogOpen} onOpenChange={(o) => { setLogoDialogOpen(o); if (!o) setLogoName(""); }}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-semibold transition-all duration-200"><Plus className="w-4 h-4" />Add Logo</button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-                  <DialogHeader><DialogTitle className="text-white">Add Logo</DialogTitle></DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">Name</label>
-                      <input placeholder="e.g. Primary Logo Dark" value={logoName} onChange={(e) => setLogoName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
+              {logos.length === 0 ? (
+                <div className="text-center py-12 bg-[#1E1E1E] border border-[#333333] rounded-xl">
+                  <ImageIcon className="w-10 h-10 mx-auto text-[#606060] mb-3" />
+                  <p className="text-[14px] text-[#A0A0A0]">No logos yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">Upload your brand logos</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {logos.map((logo) => (
+                    <div key={logo.id} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 group">
+                      <div className="aspect-square bg-[#2A2A2A] rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        <img src={logo.value} alt={logo.name} className="max-w-full max-h-full object-contain p-3" />
+                      </div>
+                      <p className="text-[13px] font-medium text-white truncate mb-2">{logo.name}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleDownload(logo.value, logo.name)}
+                          className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-[#333333] hover:bg-[#444444] text-[#A0A0A0] hover:text-white rounded-lg text-[11px] font-medium transition-all"
+                        >
+                          <Download className="w-3 h-3" />Download
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAsset(logo.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-[#606060] hover:text-red-400" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="border-2 border-dashed border-[#333333] rounded-lg p-6 text-center">
-                      <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
-                      <p className="text-[13px] text-[#A0A0A0] mb-3">Upload PNG, JPG, SVG, or WebP</p>
-                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
-                        Choose File
-                        <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" className="hidden" onChange={handleLogoUpload} />
-                      </label>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            {logos.length === 0 ? (
-              <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] p-8 text-center">
-                <p className="text-[14px] text-[#606060]">No logos yet. Upload your brand logos.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {logos.map((logo) => (
-                  <div key={logo.id} className="group relative bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 flex flex-col items-center justify-center hover:border-[#444444] transition-all duration-200 aspect-square">
-                    <img src={logo.value} alt={logo.name} className="max-w-full max-h-full object-contain" />
-                    <p className="text-[11px] text-[#A0A0A0] mt-2 truncate w-full text-center">{logo.name}</p>
-                    <button onClick={() => deleteAsset(logo.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-          {/* ---- BRAND FONTS ---- */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center"><Type className="w-4 h-4 text-[#FF6B35]" /></div>
-                <h3 className="text-[18px] font-semibold text-white">Brand Fonts</h3>
-                <span className="text-[12px] text-[#606060] bg-[#2A2A2A] px-2 py-0.5 rounded-full">{brandFonts.length}</span>
+          {/* ===== FONTS TAB ===== */}
+          {activeTab === "fonts" && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[16px] font-semibold text-white">Brand Fonts</h3>
+                <button
+                  onClick={() => { setFontSearch(""); setFontPickerOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-medium transition-all duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add Font
+                </button>
               </div>
-              <Dialog open={fontDialogOpen} onOpenChange={(o) => { setFontDialogOpen(o); if (o) fetchFonts(); }}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-semibold transition-all duration-200"><Plus className="w-4 h-4" />Link Font</button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-                  <DialogHeader><DialogTitle className="text-white">Link Brand Font</DialogTitle></DialogHeader>
-                  <div className="mt-2">
-                    <p className="text-[13px] text-[#A0A0A0] mb-3">Select a font from your library to add as a brand font.</p>
-                    <ScrollArea className="max-h-64">
-                      <div className="space-y-1">
-                        {fonts.length === 0 ? (
-                          <p className="text-center text-[14px] text-[#606060] py-8">No fonts in your library. Add some in the Fonts tab first.</p>
-                        ) : fonts.map((f) => {
-                          const alreadyLinked = brandFonts.some(bf => bf.value === f.id);
-                          return (
-                            <button key={f.id} onClick={() => !alreadyLinked && handleLinkFont(f)} disabled={alreadyLinked} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${alreadyLinked ? "opacity-40 cursor-not-allowed" : "hover:bg-[#2A2A2A]"}`}>
-                              <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-lg flex-shrink-0 text-white" style={{ fontFamily: `'${f.family}', sans-serif` }}>Aa</div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[14px] font-medium truncate text-white">{f.name}</p>
-                                <p className="text-[11px] text-[#606060] capitalize">{f.source}</p>
-                              </div>
-                              {alreadyLinked ? <span className="text-[11px] text-[#606060]">Linked</span> : <Plus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />}
-                            </button>
-                          );
-                        })}
+              {brandFonts.length === 0 ? (
+                <div className="text-center py-12 bg-[#1E1E1E] border border-[#333333] rounded-xl">
+                  <Type className="w-10 h-10 mx-auto text-[#606060] mb-3" />
+                  <p className="text-[14px] text-[#A0A0A0]">No fonts linked yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">Link fonts from your library</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {brandFonts.map((font) => (
+                    <div key={font.id} className="flex items-center gap-4 bg-[#1E1E1E] border border-[#333333] rounded-xl px-5 py-4 group">
+                      <div
+                        className="w-12 h-12 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-lg flex-shrink-0 text-white"
+                        style={{ fontFamily: `'${font.value}', sans-serif` }}
+                      >
+                        Aa
                       </div>
-                    </ScrollArea>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            {brandFonts.length === 0 ? (
-              <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] p-8 text-center">
-                <p className="text-[14px] text-[#606060]">No brand fonts linked yet. Link fonts from your library.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {brandFonts.map((bf) => {
-                  let meta: { family?: string; source?: string } = {};
-                  try { meta = JSON.parse(bf.metadata); } catch {}
-                  return (
-                    <div key={bf.id} className="flex items-center justify-between px-4 py-3 bg-[#1E1E1E] border border-[#333333] rounded-xl hover:border-[#444444] transition-all group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-xl flex-shrink-0 text-white" style={{ fontFamily: `'${meta.family || bf.name}', sans-serif` }}>Aa</div>
-                        <div className="min-w-0">
-                          <p className="text-[14px] font-medium text-white truncate">{bf.name}</p>
-                          <p className="text-[11px] text-[#606060] capitalize">{meta.source || "unknown"} · {meta.family || bf.name}</p>
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-white">{font.name}</p>
+                        <p
+                          className="text-[18px] text-[#A0A0A0] mt-0.5"
+                          style={{ fontFamily: `'${font.value}', sans-serif` }}
+                        >
+                          The quick brown fox
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Tooltip><TooltipTrigger asChild><button onClick={() => copyToClipboard(`font-family: '${meta.family || bf.name}', sans-serif;`)} className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"><Copy className="w-4 h-4 text-[#606060] hover:text-[#A0A0A0]" /></button></TooltipTrigger><TooltipContent>Copy CSS</TooltipContent></Tooltip>
-                        <button onClick={() => deleteAsset(bf.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/10 text-[#606060] hover:text-red-400 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
+                      <button
+                        onClick={() => handleCopy(`font-family: \'${font.value}\', sans-serif;`, "CSS")}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#333333] hover:bg-[#444444] text-[#A0A0A0] hover:text-white rounded-lg text-[12px] font-medium transition-all"
+                      >
+                        <Copy className="w-3.5 h-3.5" />Copy CSS
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAsset(font.id)}
+                        className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-[#606060] hover:text-red-400" />
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-          {/* ---- COLORS ---- */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center"><div className="w-4 h-4 rounded-full bg-gradient-to-br from-red-400 via-green-400 to-blue-400" /></div>
-                <h3 className="text-[18px] font-semibold text-white">Colors</h3>
-                <span className="text-[12px] text-[#606060] bg-[#2A2A2A] px-2 py-0.5 rounded-full">{colors.length}</span>
+          {/* ===== COLORS TAB ===== */}
+          {activeTab === "colors" && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[16px] font-semibold text-white">Colors</h3>
+                <button
+                  onClick={() => { setColorName(""); setColorValue("#"); setColorDialogOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-medium transition-all duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add Color
+                </button>
               </div>
-              <Dialog open={colorDialogOpen} onOpenChange={(o) => { setColorDialogOpen(o); if (!o) { setColorName(""); setColorValue("#"); } }}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-semibold transition-all duration-200"><Plus className="w-4 h-4" />Add Color</button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-                  <DialogHeader><DialogTitle className="text-white">Add Brand Color</DialogTitle></DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">Name</label>
-                      <input placeholder="e.g. Primary Orange" value={colorName} onChange={(e) => setColorName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">Hex Value</label>
-                      <div className="flex gap-3">
-                        <div className="w-12 h-12 rounded-lg border border-[#333333] flex-shrink-0 overflow-hidden" style={{ backgroundColor: colorValue }} />
-                        <input placeholder="#FF6B35" value={colorValue} onChange={(e) => setColorValue(e.target.value)} className="flex-1 px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 font-mono" />
+              {colors.length === 0 ? (
+                <div className="text-center py-12 bg-[#1E1E1E] border border-[#333333] rounded-xl">
+                  <Palette className="w-10 h-10 mx-auto text-[#606060] mb-3" />
+                  <p className="text-[14px] text-[#A0A0A0]">No colors yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">Add your brand colors</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {colors.map((color) => (
+                    <div key={color.id} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 group">
+                      <div
+                        className="w-full aspect-[3/2] rounded-lg mb-3 border border-[#333333]"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <p className="text-[13px] font-medium text-white truncate mb-1">{color.name}</p>
+                      <p className="text-[12px] text-[#606060] font-mono mb-3">{color.value}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleCopy(color.value, "Hex")}
+                          className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-[#333333] hover:bg-[#444444] text-[#A0A0A0] hover:text-white rounded-lg text-[11px] font-medium transition-all"
+                        >
+                          <Copy className="w-3 h-3" />COPY
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAsset(color.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-[#606060] hover:text-red-400" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex justify-end pt-2">
-                      <button onClick={handleAddColor} disabled={!colorName.trim() || !colorValue.trim()} className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200">Add Color</button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            {colors.length === 0 ? (
-              <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] p-8 text-center">
-                <p className="text-[14px] text-[#606060]">No brand colors yet. Add your color palette.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {colors.map((c) => (
-                  <div key={c.id} className="group bg-[#1E1E1E] border border-[#333333] rounded-xl overflow-hidden hover:border-[#444444] transition-all duration-200">
-                    <div className="h-20" style={{ backgroundColor: c.value }} />
-                    <div className="p-3">
-                      <p className="text-[12px] font-medium text-white truncate">{c.name}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[11px] text-[#606060] font-mono">{c.value}</span>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => copyToClipboard(c.value)} className="p-1 rounded hover:bg-[#2A2A2A] transition-colors"><Copy className="w-3 h-3 text-[#606060] hover:text-[#A0A0A0]" /></button>
-                          <button onClick={() => deleteAsset(c.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 transition-all"><Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" /></button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-          {/* ---- GRADIENTS ---- */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center"><div className="w-4 h-4 rounded-full" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)" }} /></div>
-                <h3 className="text-[18px] font-semibold text-white">Gradients</h3>
-                <span className="text-[12px] text-[#606060] bg-[#2A2A2A] px-2 py-0.5 rounded-full">{gradients.length}</span>
+          {/* ===== GRADIENTS TAB ===== */}
+          {activeTab === "gradients" && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[16px] font-semibold text-white">Gradients</h3>
+                <button
+                  onClick={() => { setGradientName(""); setGradientValue("linear-gradient(135deg, #667eea 0%, #764ba2 100%)"); setGradientDialogOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-medium transition-all duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add Gradient
+                </button>
               </div>
-              <Dialog open={gradientDialogOpen} onOpenChange={(o) => { setGradientDialogOpen(o); if (!o) { setGradientName(""); setGradientValue("linear-gradient(135deg, #667eea 0%, #764ba2 100%)"); } }}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-semibold transition-all duration-200"><Plus className="w-4 h-4" />Add Gradient</button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-                  <DialogHeader><DialogTitle className="text-white">Add Gradient</DialogTitle></DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">Name</label>
-                      <input placeholder="e.g. Sunset Glow" value={gradientName} onChange={(e) => setGradientName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">CSS Gradient</label>
-                      <input placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" value={gradientValue} onChange={(e) => setGradientValue(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[13px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 font-mono" />
-                      <div className="h-24 rounded-lg border border-[#333333]" style={{ background: gradientValue }} />
-                    </div>
-                    <div className="flex justify-end pt-2">
-                      <button onClick={handleAddGradient} disabled={!gradientName.trim() || !gradientValue.trim()} className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200">Add Gradient</button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            {gradients.length === 0 ? (
-              <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] p-8 text-center">
-                <p className="text-[14px] text-[#606060]">No gradients yet. Add your brand gradients.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {gradients.map((g) => (
-                  <div key={g.id} className="group bg-[#1E1E1E] border border-[#333333] rounded-xl overflow-hidden hover:border-[#444444] transition-all duration-200">
-                    <div className="h-28" style={{ background: g.value }} />
-                    <div className="p-3">
-                      <p className="text-[12px] font-medium text-white truncate">{g.name}</p>
-                      <p className="text-[10px] text-[#606060] font-mono truncate mt-1">{g.value}</p>
-                      <div className="flex items-center gap-1 mt-2">
-                        <button onClick={() => copyToClipboard(g.value)} className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-[#2A2A2A] text-[11px] text-[#A0A0A0] hover:bg-[#333333] transition-colors"><Copy className="w-3 h-3" />Copy CSS</button>
-                        <button onClick={() => deleteAsset(g.id)} className="p-1.5 rounded-md hover:bg-red-500/10 text-[#606060] hover:text-red-400 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+              {gradients.length === 0 ? (
+                <div className="text-center py-12 bg-[#1E1E1E] border border-[#333333] rounded-xl">
+                  <Settings2 className="w-10 h-10 mx-auto text-[#606060] mb-3" />
+                  <p className="text-[14px] text-[#A0A0A0]">No gradients yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">Add your brand gradients</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {gradients.map((grad) => (
+                    <div key={grad.id} className="bg-[#1E1E1E] border border-[#333333] rounded-xl p-4 group">
+                      <div
+                        className="w-full aspect-[3/2] rounded-lg mb-3 border border-[#333333]"
+                        style={{ background: grad.value }}
+                      />
+                      <p className="text-[13px] font-medium text-white truncate mb-1">{grad.name}</p>
+                      <p className="text-[11px] text-[#606060] font-mono truncate mb-3">{grad.value}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleCopy(grad.value, "Gradient CSS")}
+                          className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-[#333333] hover:bg-[#444444] text-[#A0A0A0] hover:text-white rounded-lg text-[11px] font-medium transition-all"
+                        >
+                          <Copy className="w-3 h-3" />Copy CSS
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAsset(grad.id)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-[#606060] hover:text-red-400" />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-          {/* ---- PDF / BRAND GUIDE ---- */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center"><FileText className="w-4 h-4 text-[#FF6B35]" /></div>
-                <h3 className="text-[18px] font-semibold text-white">Brand Guide / PDFs</h3>
-                <span className="text-[12px] text-[#606060] bg-[#2A2A2A] px-2 py-0.5 rounded-full">{pdfs.length}</span>
+          {/* ===== PDFS TAB ===== */}
+          {activeTab === "pdfs" && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[16px] font-semibold text-white">PDFs</h3>
+                <button
+                  onClick={() => { setPdfName(""); setPdfDialogOpen(true); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-medium transition-all duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add PDF
+                </button>
               </div>
-              <Dialog open={pdfDialogOpen} onOpenChange={(o) => { setPdfDialogOpen(o); if (!o) setPdfName(""); }}>
-                <DialogTrigger asChild>
-                  <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[13px] font-semibold transition-all duration-200"><Upload className="w-4 h-4" />Upload PDF</button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-                  <DialogHeader><DialogTitle className="text-white">Upload Brand Guide</DialogTitle></DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <div className="space-y-2">
-                      <label className="text-[14px] font-medium text-[#A0A0A0]">Name</label>
-                      <input placeholder="e.g. Brand Guidelines v2" value={pdfName} onChange={(e) => setPdfName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
-                    </div>
-                    <div className="border-2 border-dashed border-[#333333] rounded-lg p-6 text-center">
-                      <FileText className="w-8 h-8 mx-auto text-[#606060] mb-2" />
-                      <p className="text-[13px] text-[#A0A0A0] mb-3">Upload PDF file</p>
-                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
-                        Choose File
-                        <input type="file" accept=".pdf" className="hidden" onChange={handlePdfUpload} />
-                      </label>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-            {pdfs.length === 0 ? (
-              <div className="border border-[#333333] rounded-xl bg-[#1E1E1E] p-8 text-center">
-                <p className="text-[14px] text-[#606060]">No PDFs uploaded yet. Add your brand guidelines.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {pdfs.map((p) => {
-                  let meta: { size?: number } = {};
-                  try { meta = JSON.parse(p.metadata); } catch {}
-                  return (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3 bg-[#1E1E1E] border border-[#333333] rounded-xl hover:border-[#444444] transition-all group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-red-400" /></div>
-                        <div className="min-w-0">
-                          <p className="text-[14px] font-medium text-white truncate">{p.name}</p>
-                          <p className="text-[11px] text-[#606060]">{meta.size ? formatFileSize(meta.size) : "PDF"}</p>
-                        </div>
+              {pdfs.length === 0 ? (
+                <div className="text-center py-12 bg-[#1E1E1E] border border-[#333333] rounded-xl">
+                  <FileText className="w-10 h-10 mx-auto text-[#606060] mb-3" />
+                  <p className="text-[14px] text-[#A0A0A0]">No PDFs yet</p>
+                  <p className="text-[12px] text-[#606060] mt-1">Upload brand guidelines and documents</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {pdfs.map((pdf) => (
+                    <div key={pdf.id} className="flex items-center gap-4 bg-[#1E1E1E] border border-[#333333] rounded-xl px-5 py-4 group">
+                      <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-red-400" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => downloadPdf(p)} className="p-1.5 rounded-md hover:bg-[#2A2A2A] transition-colors"><Download className="w-4 h-4 text-[#606060] hover:text-[#A0A0A0]" /></button>
-                        <button onClick={() => deleteAsset(p.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/10 text-[#606060] hover:text-red-400 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-white truncate">{pdf.name}</p>
+                        <p className="text-[12px] text-[#606060] mt-0.5">{formatFileSize(pdf.value)}</p>
                       </div>
+                      <button
+                        onClick={() => handleDownload(pdf.value, pdf.name)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#333333] hover:bg-[#444444] text-[#A0A0A0] hover:text-white rounded-lg text-[12px] font-medium transition-all"
+                      >
+                        <Download className="w-3.5 h-3.5" />DOWNLOAD
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAsset(pdf.id)}
+                        className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-[#606060] hover:text-red-400" />
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </>
       )}
-    </div>
+
+      {/* ===== ADD LOGO DIALOG ===== */}
+      <Dialog open={logoDialogOpen} onOpenChange={setLogoDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Add Logo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Logo Name</label>
+              <input
+                placeholder="e.g. Primary Logo Dark"
+                value={logoName}
+                onChange={(e) => setLogoName(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center hover:border-[#FF6B35]/40 transition-colors">
+              <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+              <p className="text-[13px] text-[#A0A0A0] mb-3">PNG, JPG, SVG, or WebP</p>
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
+                Choose File
+                <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={handleLogoFileUpload} />
+              </label>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== ADD COLOR DIALOG ===== */}
+      <Dialog open={colorDialogOpen} onOpenChange={setColorDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Add Color</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Color Name</label>
+              <input
+                placeholder="e.g. Brand Orange"
+                value={colorName}
+                onChange={(e) => setColorName(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Hex Value</label>
+              <div className="flex gap-3 items-center">
+                <div className="w-12 h-12 rounded-lg border border-[#333333] flex-shrink-0" style={{ backgroundColor: colorValue }} />
+                <input
+                  placeholder="#FF6B35"
+                  value={colorValue}
+                  onChange={(e) => setColorValue(e.target.value)}
+                  className="flex-1 px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 font-mono"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setColorDialogOpen(false)}
+              className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (!colorName.trim()) { toast.error("Please enter a color name"); return; }
+                if (!/^#[0-9A-Fa-f]{3,8}$/.test(colorValue)) { toast.error("Please enter a valid hex color"); return; }
+                handleAddAsset("color", colorName.trim(), colorValue);
+                setColorDialogOpen(false);
+              }}
+              className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+            >
+              Add Color
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== ADD GRADIENT DIALOG ===== */}
+      <Dialog open={gradientDialogOpen} onOpenChange={setGradientDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Add Gradient</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Gradient Name</label>
+              <input
+                placeholder="e.g. Hero Gradient"
+                value={gradientName}
+                onChange={(e) => setGradientName(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">CSS Value</label>
+              <div
+                className="w-full h-20 rounded-lg border border-[#333333] mb-2"
+                style={{ background: gradientValue }}
+              />
+              <input
+                placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                value={gradientValue}
+                onChange={(e) => setGradientValue(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200 font-mono text-[12px]"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setGradientDialogOpen(false)}
+              className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (!gradientName.trim()) { toast.error("Please enter a gradient name"); return; }
+                handleAddAsset("gradient", gradientName.trim(), gradientValue);
+                setGradientDialogOpen(false);
+              }}
+              className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+            >
+              Add Gradient
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== ADD PDF DIALOG ===== */}
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Add PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Document Name</label>
+              <input
+                placeholder="e.g. Brand Guidelines v2"
+                value={pdfName}
+                onChange={(e) => setPdfName(e.target.value)}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center hover:border-[#FF6B35]/40 transition-colors">
+              <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+              <p className="text-[13px] text-[#A0A0A0] mb-3">PDF files</p>
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
+                Choose File
+                <input type="file" accept="application/pdf" className="hidden" onChange={handlePdfFileUpload} />
+              </label>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== FONT PICKER DIALOG ===== */}
+      <Dialog open={fontPickerOpen} onOpenChange={setFontPickerOpen}>
+        <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Link Font from Library</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+              <input
+                placeholder="Search fonts..."
+                value={fontSearch}
+                onChange={(e) => setFontSearch(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <ScrollArea className="h-72">
+              {fontList.length === 0 ? (
+                <div className="text-center py-8 text-[#606060] text-[14px]">No fonts found</div>
+              ) : (
+                <div className="space-y-1">
+                  {fontList.map((f) => {
+                    const alreadyLinked = brandFonts.some((bf) => bf.value === f.family);
+                    return (
+                      <div
+                        key={f.id}
+                        className={`flex items-center justify-between p-3 rounded-lg transition-colors ${alreadyLinked ? "opacity-50" : "hover:bg-[#2A2A2A]"}`}
+                      >
+                        <div>
+                          <p className="text-[15px] font-medium text-white" style={{ fontFamily: `'${f.family}', sans-serif` }}>{f.name}</p>
+                          <p className="text-[11px] text-[#606060] capitalize mt-0.5">{f.source}</p>
+                        </div>
+                        {alreadyLinked ? (
+                          <span className="text-[11px] text-[#606060]">Linked</span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              handleAddAsset("font", f.name, f.family, f.source);
+                              setFontPickerOpen(false);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[12px] font-medium transition-all duration-200"
+                          >
+                            <Plus className="w-3.5 h-3.5" />Link
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== EDIT PROFILE DIALOG ===== */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Brand Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Brand Name</label>
+              <input
+                placeholder="e.g. Acme Corp"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleEditProfile()}
+                className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Primary Logo</label>
+              <div className="border-2 border-dashed border-[#333333] rounded-lg p-6 text-center hover:border-[#FF6B35]/40 transition-colors">
+                {profileLogoPreview ? (
+                  <div className="space-y-3">
+                    <img src={profileLogoPreview} alt="Preview" className="w-20 h-20 object-contain mx-auto" />
+                    <button
+                      onClick={() => { setProfileLogo(""); setProfileLogoPreview(""); }}
+                      className="text-[12px] text-[#A0A0A0] hover:text-red-400 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
+                    <p className="text-[13px] text-[#A0A0A0] mb-3">PNG, JPG, SVG, or WebP</p>
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[13px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
+                      Choose File
+                      <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={handleProfileLogoUpload} />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setEditDialogOpen(false)}
+              className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEditProfile}
+              className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"
+            >
+              Save Changes
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }
 

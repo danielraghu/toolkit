@@ -40,13 +40,25 @@ model Font {
   updatedAt  DateTime @updatedAt
 }
 
+model BrandProfile {
+  id          String        @id @default(cuid())
+  name        String
+  primaryLogo String        @default("") // base64 data URI
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  assets      BrandAsset[]
+}
+
 model BrandAsset {
-  id        String   @id @default(cuid())
-  type      String   // "logo", "font", "color", "gradient", "pdf"
+  id        String       @id @default(cuid())
+  type      String       // "logo", "font", "color", "gradient", "pdf"
   name      String
-  value     String   // hex color, gradient CSS, base64 data, font ID reference, URL
-  metadata  String   @default("{}") // JSON for extra info (dimensions, mime type, etc.)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  value     String       // hex color, gradient CSS, base64 data, font ID reference, URL
+  metadata  String       @default("{}") // JSON for extra info (dimensions, mime type, etc.)
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  profileId String?
+  profile   BrandProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 }

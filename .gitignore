@@ -66,6 +66,13 @@ server.log
 # Agent context
 /agent-ctx/
 worklog.md
+tool-results/
+*.png
+!public/*.png
+!public/*.svg
+keep-alive.sh
+start-dev.sh
+.zscripts/
 
 # Mini services (not needed for deployment)
 mini-services/

@@ -1,15 +1,19 @@
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
-// GET /api/brand-assets — list brand assets (optional ?type= filter)
+// GET /api/brand-assets — list brand assets (optional ?type= & ?profileId= filters)
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
+    const profileId = searchParams.get("profileId");
 
     const where: Record<string, unknown> = {};
     if (type && type !== "all") {
       where.type = type;
+    }
+    if (profileId) {
+      where.profileId = profileId;
     }
 
     const assets = await db.brandAsset.findMany({
@@ -28,7 +32,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, name, value, metadata, order } = body;
+    const { type, name, value, metadata, order, profileId } = body;
 
     if (!type || !name?.trim()) {
       return NextResponse.json({ error: "Type and name are required" }, { status: 400 });
@@ -39,9 +43,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Invalid type. Must be one of: ${validTypes.join(", ")}` }, { status: 400 });
     }
 
-    // Get max order for this type
+    // Get max order for this type within the profile (or globally)
+    const orderWhere: Record<string, unknown> = { type };
+    if (profileId) orderWhere.profileId = profileId;
     const maxOrder = await db.brandAsset.findFirst({
-      where: { type },
+      where: orderWhere,
       orderBy: { order: "desc" },
       select: { order: true },
     });
@@ -53,6 +59,7 @@ export async function POST(req: NextRequest) {
         value: value || "",
         metadata: metadata ? JSON.stringify(metadata) : "{}",
         order: order ?? (maxOrder?.order ?? -1) + 1,
+        profileId: profileId || null,
       },
     });
 
@@ -79,6 +86,7 @@ export async function PUT(req: NextRequest) {
     if (data.metadata !== undefined) updateData.metadata = typeof data.metadata === "string" ? data.metadata : JSON.stringify(data.metadata);
     if (data.type !== undefined) updateData.type = data.type;
     if (data.order !== undefined) updateData.order = data.order;
+    if (data.profileId !== undefined) updateData.profileId = data.profileId || null;
 
     const asset = await db.brandAsset.update({
       where: { id },

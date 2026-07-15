@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Simple password check against env variable
-// Default password: "nem2024"
-const VALID_PASSWORD = process.env.TOOLKIT_PASSWORD || "nem2024";
+// Default password: "nem2026$$$"
+const VALID_PASSWORD = process.env.TOOLKIT_PASSWORD || "nem2026$$$";
 
 export async function POST(req: NextRequest) {
   try {
