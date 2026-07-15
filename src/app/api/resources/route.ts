@@ -72,6 +72,7 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get("category");
     const search = searchParams.get("search");
     const favorites = searchParams.get("favorites");
+    const tag = searchParams.get("tag");
 
     const where: Record<string, unknown> = {};
 
@@ -83,13 +84,28 @@ export async function GET(req: NextRequest) {
       where.isFavorite = true;
     }
 
+    // Tag filter: match the exact tag within the comma-separated tags string
+    if (tag) {
+      where.tags = { contains: tag };
+    }
+
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { title: { contains: search } },
         { description: { contains: search } },
         { tags: { contains: search } },
         { url: { contains: search } },
       ];
+      if (where.tags) {
+        // Combine tag filter with search OR conditions
+        where.AND = [
+          { tags: where.tags },
+          { OR: searchConditions },
+        ];
+        delete where.tags;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const resources = await db.resource.findMany({
@@ -104,7 +120,18 @@ export async function GET(req: NextRequest) {
     });
     const categories = dbCategories.map(c => c.name);
 
-    return NextResponse.json({ resources, categories });
+    // Extract all unique tags from resources
+    const allTags = new Set<string>();
+    for (const r of resources) {
+      if (r.tags) {
+        for (const t of r.tags.split(",")) {
+          const trimmed = t.trim().toLowerCase();
+          if (trimmed) allTags.add(trimmed);
+        }
+      }
+    }
+
+    return NextResponse.json({ resources, categories, allTags: Array.from(allTags).sort() });
   } catch (error) {
     console.error("GET /api/resources error:", error);
     return NextResponse.json({ error: "Failed to fetch resources" }, { status: 500 });
