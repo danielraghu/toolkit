@@ -560,18 +560,14 @@ function ResourcesSection() {
       </div>
 
       {/* TAG FILTERS */}
-      {globalTags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {globalTags.map((tag) => (
-            <button key={tag} onClick={() => { setActiveTag(activeTag === tag ? null : tag); }} className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-200 ${activeTag === tag ? "bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/40" : "bg-[#2A2A2A] text-[#606060] border border-[#333333] hover:text-[#A0A0A0] hover:border-[#444444]"}`}>
-              <Tag className="w-3 h-3" />{tag}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="mb-6">
-        <button onClick={() => setShowTagManager(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 bg-transparent text-[#505050] hover:text-[#A0A0A0] hover:bg-[#1A1A1A] border border-transparent hover:border-[#333333]">
-          <Settings2 className="w-3 h-3" />Manage Tags
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none">
+        {globalTags.map((tag) => (
+          <button key={tag} onClick={() => { setActiveTag(activeTag === tag ? null : tag); }} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 ${activeTag === tag ? "bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/40" : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white border border-transparent"}`}>
+            <Tag className="w-3 h-3" />{tag}
+          </button>
+        ))}
+        <button onClick={() => setShowTagManager(true)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 bg-[#2A2A2A] text-[#606060] hover:bg-[#333333] hover:text-[#A0A0A0] border border-dashed border-[#444444]">
+          <Settings2 className="w-3.5 h-3.5" />Manage
         </button>
       </div>
 

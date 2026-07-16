@@ -350,3 +350,26 @@ Changes applied to `/home/z/my-project/src/app/page.tsx` (FontsSection):
 
 Lint check: `npx eslint src/app/page.tsx` — passed with no errors.
 TypeScript check: All errors are pre-existing in other files, none in page.tsx.
+
+---
+Task ID: 3
+Agent: Main
+Task: Fix tags panel overflow and restyle to match category management look
+
+Work Log:
+- Identified overflow issue: tags used `flex flex-wrap` which caused right-side overflow, while categories used `overflow-x-auto scrollbar-none`
+- Identified style mismatch: "Manage Tags" button was outside the tags container with a different style (transparent bg, "Manage Tags" text) vs categories ("Manage" with dashed border inside the container)
+- Removed the separate "Manage Tags" button div
+- Changed tags container from `flex flex-wrap gap-1.5 mb-4` to `flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none` (matching categories)
+- Changed tag pill sizes from `px-3 py-1.5 text-[11px]` to `px-4 py-2 text-[12px]` (matching category pill sizes)
+- Changed inactive tag style from `bg-[#2A2A2A] text-[#606060] border border-[#333333]` to `bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white border border-transparent` (matching categories)
+- Moved "Manage" button inside the tags container with same dashed border style as category Manage button
+- Changed "Manage Tags" label to just "Manage" (matching categories)
+- Made the tags container always visible (removed `globalTags.length > 0` condition) so users can always add tags even when none exist
+- Build compiles successfully with zero errors
+
+Stage Summary:
+- Tags filter bar now matches category filter bar exactly in style and behavior
+- Overflow fixed: horizontal scroll instead of flex-wrap
+- "Manage" button inside the container with dashed border style
+- Tags bar always visible for creating new tags
