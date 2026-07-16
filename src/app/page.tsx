@@ -524,7 +524,7 @@ function ResourcesSection() {
   const suggestedTags = globalTags.filter(t => !currentFormTags.includes(t.toLowerCase())).slice(0, 8);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-6 py-8">
+    <div className="max-w-[1200px] mx-auto px-6 py-8 overflow-hidden">
       {/* TOP BAR */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -548,7 +548,7 @@ function ResourcesSection() {
       </div>
 
       {/* CATEGORY FILTERS */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-none min-w-0">
         {allCategories.map((cat) => (
           <button key={cat} onClick={() => { setActiveCategory(cat); setActiveTag(null); }} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 ${activeCategory === cat && !activeTag ? "bg-[#FF6B35] text-white" : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"}`}>
             {cat !== "All" && <span className="text-xs">{getCategoryIcon(cat)}</span>}{cat}
@@ -560,7 +560,7 @@ function ResourcesSection() {
       </div>
 
       {/* TAG FILTERS */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 scrollbar-none min-w-0">
         {globalTags.map((tag) => (
           <button key={tag} onClick={() => { setActiveTag(activeTag === tag ? null : tag); }} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-medium whitespace-nowrap transition-all duration-200 ${activeTag === tag ? "bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/40" : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white border border-transparent"}`}>
             <Tag className="w-3 h-3" />{tag}
