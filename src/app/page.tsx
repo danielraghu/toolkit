@@ -119,6 +119,13 @@ interface FontVariant {
   label: string;
 }
 
+interface UploadFileItem {
+  file: File;
+  weight: number;
+  style: "normal" | "italic";
+  id: string;
+}
+
 // ===================== ICON HELPERS =====================
 
 function getCategoryIcon(category: string) {
@@ -1752,6 +1759,46 @@ function BrandAssetsSection() {
 
 // ===================== FONTS SECTION =====================
 
+function FontDownloadDropdown({ font, variants }: { font: FontItem; variants: { weight: number; style: string; file?: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const weightLabels: Record<number, string> = { 100: "Thin", 200: "ExtraLight", 300: "Light", 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+  const fileVariants = variants.filter((v) => v.file);
+  const downloadVariant = (v: { weight: number; style: string; file?: string }) => {
+    if (!v.file) return;
+    const ext = v.file.split(".").pop() || "ttf";
+    const link = document.createElement("a");
+    link.href = v.file;
+    link.download = `${font.family.replace(/\s+/g, "-")}_${v.weight}${v.style === "italic" ? "Italic" : ""}.${ext}`;
+    link.click();
+  };
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className="p-1.5 rounded hover:bg-[#333333] transition-all"><Download className="w-3.5 h-3.5 text-[#A0A0A0] hover:text-white" /></button>
+      {open && (
+        <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-1 w-52 bg-[#2A2A2A] border border-[#444444] rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="p-2 border-b border-[#444444]"><p className="text-[11px] font-medium text-[#606060] uppercase tracking-wider">Download Variant</p></div>
+          {fileVariants.map((v) => {
+            const label = `${weightLabels[v.weight] || v.weight}${v.style === "italic" ? " Italic" : ""}`;
+            const ext = v.file?.split(".").pop()?.toUpperCase() || "";
+            return (
+              <button key={`${v.weight}-${v.style}`} onClick={() => { setOpen(false); downloadVariant(v); }} className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[#333333] transition-colors">
+                <span className="text-[13px] text-[#A0A0A0]">{label}</span>
+                <span className="text-[10px] text-[#505050]">{ext}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FontsSection() {
   const [fonts, setFonts] = useState<FontItem[]>([]);
   const [selectedFont, setSelectedFont] = useState<FontItem | null>(null);
@@ -1764,12 +1811,16 @@ function FontsSection() {
   const [googleFonts, setGoogleFonts] = useState<GoogleFontResult[]>([]);
   const [googleSearch, setGoogleSearch] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [configuringFont, setConfiguringFont] = useState<GoogleFontResult | null>(null);
-  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [loadedFontFamilies, setLoadedFontFamilies] = useState<Set<string>>(new Set());
   const [filterSource, setFilterSource] = useState("All");
   const [uploadName, setUploadName] = useState("");
   const [uploadFamily, setUploadFamily] = useState("");
+  const [editingFont, setEditingFont] = useState<FontItem | null>(null);
+  const [editFontName, setEditFontName] = useState("");
+  const [editFontFamily, setEditFontFamily] = useState("");
+  const [previewVariant, setPreviewVariant] = useState("all");
+  const [uploadFiles, setUploadFiles] = useState<UploadFileItem[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const fetchFonts = useCallback(async () => {
     try {
@@ -1801,8 +1852,26 @@ function FontsSection() {
       }
     } else if (selectedFont.source === "custom" && selectedFont.filePath) {
       if (!loadedFontFamilies.has(selectedFont.family)) {
+        let css = "";
+        try {
+          const vArr = JSON.parse(selectedFont.variants);
+          if (Array.isArray(vArr) && vArr.length > 0 && typeof vArr[0] === "object" && vArr[0].weight !== undefined) {
+            const formatMap: Record<string, string> = { ttf: "truetype", otf: "opentype", woff: "woff", woff2: "woff2" };
+            vArr.forEach((v: { weight: number; style: string; file: string }) => {
+              if (v.file) {
+                const ext = v.file.split(".").pop()?.toLowerCase() || "ttf";
+                css += `@font-face { font-family: '${selectedFont.family}'; src: url('${v.file}') format('${formatMap[ext] || "truetype"}'); font-weight: ${v.weight}; font-style: ${v.style}; }\n`;
+              }
+            });
+          }
+        } catch {}
+        if (!css) {
+          const ext = selectedFont.filePath.split(".").pop()?.toLowerCase() || "ttf";
+          const formatMap: Record<string, string> = { ttf: "truetype", otf: "opentype", woff: "woff", woff2: "woff2" };
+          css = `@font-face { font-family: '${selectedFont.family}'; src: url('${selectedFont.filePath}') format('${formatMap[ext]}'); font-weight: normal; font-style: normal; }`;
+        }
         const style = document.createElement("style");
-        style.textContent = `@font-face { font-family: '${selectedFont.family}'; src: url('${selectedFont.filePath}') format('truetype'); font-weight: normal; font-style: normal; }`;
+        style.textContent = css;
         document.head.appendChild(style);
         setLoadedFontFamilies((prev) => new Set(prev).add(selectedFont.family));
       }
@@ -1828,76 +1897,109 @@ function FontsSection() {
 
   useEffect(() => { if (showGoogleBrowser) fetchGoogleFonts(); }, [showGoogleBrowser]);
 
-  const addGoogleFont = (gf: GoogleFontResult) => {
-    let variants: string[] = [];
-    try { variants = JSON.parse(gf.variants); } catch {}
-    setConfiguringFont(gf);
-    setSelectedVariants(variants.length > 0 ? [variants[0]] : []);
-  };
-
-  const toggleVariant = (v: string) => {
-    setSelectedVariants((prev) =>
-      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
-    );
-  };
-
-  const selectAllVariants = () => {
-    if (!configuringFont) return;
-    let all: string[] = [];
-    try { all = JSON.parse(configuringFont.variants); } catch {}
-    setSelectedVariants(all);
-  };
-
-  const confirmAddGoogleFont = async () => {
-    if (!configuringFont || selectedVariants.length === 0) { toast.error("Select at least one variant"); return; }
+  const addGoogleFont = async (gf: GoogleFontResult) => {
     try {
       const res = await fetch("/api/fonts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: configuringFont.name, family: configuringFont.family, source: "google", variants: JSON.stringify(selectedVariants) }),
+        body: JSON.stringify({ name: gf.family, family: gf.family, source: "google", variants: gf.variants }),
       });
-      if (res.status === 409) {
-        toast.error("This font is already in your collection");
-        return;
-      }
+      if (res.status === 409) { toast.error("Already in your collection"); return; }
       const data = await res.json();
-      if (res.ok) {
-        setFonts((prev) => [data.font, ...prev]);
-        toast.success(`Added "${configuringFont.family}" with ${selectedVariants.length} variant${selectedVariants.length > 1 ? "s" : ""}`);
-        setConfiguringFont(null);
-        setSelectedVariants([]);
-      } else {
-        toast.error(data.error || "Failed to add font");
-      }
+      if (res.ok) { setFonts((prev) => [data.font, ...prev]); toast.success(`Added "${gf.family}"`); }
+      else { toast.error(data.error || "Failed to add"); }
     } catch { toast.error("Failed to add font"); }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!uploadName.trim() || !uploadFamily.trim()) { toast.error("Please enter font name and family"); return; }
-    const formData = new FormData();
-    formData.append("font", file);
-    formData.append("name", uploadName.trim());
-    formData.append("family", uploadFamily.trim());
-    try {
-      const res = await fetch("/api/fonts/upload", { method: "POST", body: formData });
-      const font = await res.json();
-      if (res.ok) { setFonts((prev) => [font, ...prev]); toast.success(`Uploaded "${uploadFamily}"`); setShowUpload(false); setUploadName(""); setUploadFamily(""); }
-      else { toast.error(font.error || "Upload failed"); }
-    } catch { toast.error("Failed to upload font"); }
+  const WEIGHT_OPTIONS = [
+    { value: 100, label: "100 Thin" }, { value: 200, label: "200 ExtraLight" }, { value: 300, label: "300 Light" },
+    { value: 400, label: "400 Regular" }, { value: 500, label: "500 Medium" }, { value: 600, label: "600 SemiBold" },
+    { value: 700, label: "700 Bold" }, { value: 800, label: "800 ExtraBold" }, { value: 900, label: "900 Black" },
+  ];
+  const detectWeightFromName = (name: string): number => {
+    const n = name.toLowerCase();
+    if (/thin/.test(n)) return 100; if (/extralight|extra-light/.test(n)) return 200;
+    if (/light/.test(n)) return 300; if (/regular|normal/.test(n)) return 400;
+    if (/medium/.test(n)) return 500; if (/semibold|semi-bold|demibold/.test(n)) return 600;
+    if (/bold/.test(n)) return 700; if (/extrabold|extra-bold/.test(n)) return 800; if (/black|heavy/.test(n)) return 900;
+    const m = n.match(/(\d{3})/); return m ? parseInt(m[1]) : 400;
+  };
+  const detectStyleFromName = (name: string): "normal" | "italic" => {
+    return /italic|oblique/i.test(name) ? "italic" : "normal";
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const newFiles: UploadFileItem[] = Array.from(files).map((file) => {
+      const baseName = file.name.replace(/\.[^.]+$/, "");
+      return { file, weight: detectWeightFromName(baseName), style: detectStyleFromName(baseName), id: crypto.randomUUID() };
+    });
+    setUploadFiles((prev) => [...prev, ...newFiles]);
+    if (!uploadName && newFiles.length > 0) {
+      const baseName = newFiles[0].file.name.replace(/\.[^.]+$/, "").replace(/[-_](thin|extralight|extra-light|light|regular|normal|medium|semibold|semi-bold|demibold|bold|extrabold|extra-bold|black|heavy|italic|oblique|\d{3})/gi, "").replace(/[-_]+/g, " ").trim();
+      if (baseName) { setUploadName(baseName); setUploadFamily(baseName.replace(/\s+/g, "")); }
+    }
     e.target.value = "";
+  };
+
+  const handleUpload = async () => {
+    if (uploadFiles.length === 0 || !uploadName.trim() || !uploadFamily.trim()) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      uploadFiles.forEach((f) => formData.append("fonts[]", f.file));
+      formData.append("name", uploadName.trim());
+      formData.append("family", uploadFamily.trim());
+      const variants = uploadFiles.map((f) => ({ filename: f.file.name, weight: f.weight, style: f.style }));
+      formData.append("variants", JSON.stringify(variants));
+      const res = await fetch("/api/fonts/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setFonts((prev) => [data.font, ...prev]);
+        toast.success(`Uploaded "${uploadFamily}" with ${uploadFiles.length} variant${uploadFiles.length > 1 ? "s" : ""}`);
+        setShowUpload(false); setUploadFiles([]); setUploadName(""); setUploadFamily("");
+        if (data.font && !loadedFontFamilies.has(data.font.family)) {
+          let css = "";
+          try {
+            const vArr = JSON.parse(data.font.variants);
+            if (Array.isArray(vArr) && vArr[0]?.file) {
+              const formatMap: Record<string, string> = { ttf: "truetype", otf: "opentype", woff: "woff", woff2: "woff2" };
+              vArr.forEach((v: { weight: number; style: string; file: string }) => {
+                if (v.file) { const ext = v.file.split(".").pop()?.toLowerCase() || "ttf"; css += `@font-face { font-family: '${data.font.family}'; src: url('${v.file}') format('${formatMap[ext] || "truetype"}'); font-weight: ${v.weight}; font-style: ${v.style}; }\n`; }
+              });
+            }
+          } catch {}
+          if (css) { const style = document.createElement("style"); style.textContent = css; document.head.appendChild(style); setLoadedFontFamilies((prev) => new Set(prev).add(data.font.family)); }
+        }
+      } else { toast.error(data.error || "Upload failed"); }
+    } catch { toast.error("Failed to upload"); } finally { setUploading(false); }
   };
 
   const handleDownloadFont = (font: FontItem) => {
     if (font.source === "google") {
       window.open(`https://fonts.google.com/specimen/${encodeURIComponent(font.family)}`, "_blank");
     } else if (font.filePath) {
+      const ext = font.filePath.split(".").pop() || "ttf";
       const link = document.createElement("a");
       link.href = font.filePath;
-      link.download = `${font.family.replace(/\s+/g, "-")}.ttf`;
+      link.download = `${font.family.replace(/\s+/g, "-")}.${ext}`;
       link.click();
     }
+  };
+
+  const handleDownloadVariant = (font: FontItem, variantKey: string) => {
+    try {
+      const vArr = JSON.parse(font.variants);
+      const v = vArr.find((x: { weight: number; style: string; file?: string }) => `${x.weight}-${x.style}` === variantKey);
+      if (v?.file) {
+        const ext = v.file.split(".").pop() || "ttf";
+        const link = document.createElement("a");
+        link.href = v.file;
+        link.download = `${font.family.replace(/\s+/g, "-")}_${v.weight}${v.style === "italic" ? "Italic" : ""}.${ext}`;
+        link.click();
+      }
+    } catch {}
   };
 
   const handleDeleteFont = async (id: string) => {
@@ -1909,17 +2011,49 @@ function FontsSection() {
     } catch { toast.error("Failed to delete font"); }
   };
 
+  const handleEditFont = (font: FontItem) => {
+    setEditingFont(font);
+    setEditFontName(font.name);
+    setEditFontFamily(font.family);
+  };
+
+  const saveEditFont = async () => {
+    if (!editingFont || !editFontName.trim() || !editFontFamily.trim()) { toast.error("Name and family are required"); return; }
+    try {
+      const res = await fetch("/api/fonts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingFont.id, name: editFontName.trim(), family: editFontFamily.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFonts((prev) => prev.map((f) => f.id === editingFont.id ? data.font : f));
+        if (selectedFont?.id === editingFont.id) setSelectedFont(data.font);
+        toast.success("Font updated");
+        setEditingFont(null);
+      } else { toast.error(data.error || "Failed to update"); }
+    } catch { toast.error("Failed to update font"); }
+  };
+
   const parseVariants = (variantsStr: string): FontVariant[] => {
     try {
-      const raw: string[] = JSON.parse(variantsStr);
+      const raw = JSON.parse(variantsStr);
+      if (!Array.isArray(raw) || raw.length === 0) return [{ weight: 400, style: "normal", label: "Regular" }];
       return raw.map((v) => {
-        let weight = 400; let style = "normal"; let label = v;
-        if (v.includes("italic")) style = "italic";
-        const num = v.match(/\d+/);
+        if (typeof v === "object" && v.weight !== undefined) {
+          const weight = typeof v.weight === "number" ? v.weight : 400;
+          const style = v.style === "italic" ? "italic" : "normal";
+          const weightLabels: Record<number, string> = { 100: "Thin", 200: "Extra Light", 300: "Light", 400: "Regular", 500: "Medium", 600: "Semi Bold", 700: "Bold", 800: "Extra Bold", 900: "Black" };
+          const label = (weightLabels[weight] || `Weight ${weight}`) + (style === "italic" ? " Italic" : "");
+          return { weight, style, label };
+        }
+        const str = String(v);
+        let weight = 400; let style = "normal";
+        if (str.includes("italic")) style = "italic";
+        const num = str.match(/\d+/);
         if (num) weight = parseInt(num[0]);
         const weightLabels: Record<number, string> = { 100: "Thin", 200: "Extra Light", 300: "Light", 400: "Regular", 500: "Medium", 600: "Semi Bold", 700: "Bold", 800: "Extra Bold", 900: "Black" };
-        label = weightLabels[weight] || `Weight ${weight}`;
-        if (style === "italic") label += " Italic";
+        const label = (weightLabels[weight] || `Weight ${weight}`) + (style === "italic" ? " Italic" : "");
         return { weight, style, label };
       });
     } catch { return [{ weight: 400, style: "normal", label: "Regular" }]; }
@@ -1941,21 +2075,39 @@ function FontsSection() {
           <button onClick={() => setShowGoogleBrowser(!showGoogleBrowser)} className={`inline-flex items-center gap-2 px-4 py-3 rounded-lg text-[14px] font-medium transition-all duration-200 ${showGoogleBrowser ? "bg-[#FF6B35] text-white" : "bg-[#333333] text-[#A0A0A0] hover:bg-[#444444] hover:text-white"}`}>
             <Globe className="w-4 h-4" />Browse Google Fonts
           </button>
-          <Dialog open={showUpload} onOpenChange={setShowUpload}>
+          <Dialog open={showUpload} onOpenChange={(o) => { setShowUpload(o); if (!o) { setUploadFiles([]); setUploadName(""); setUploadFamily(""); } }}>
             <DialogTrigger asChild>
               <button className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] active:bg-[#E64A19] text-white rounded-lg text-[14px] font-semibold transition-all duration-200"><Upload className="w-4 h-4" />Upload Font</button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-              <DialogHeader><DialogTitle className="text-white">Upload Custom Font</DialogTitle></DialogHeader>
-              <div className="space-y-4 mt-2">
-                <div className="border-2 border-dashed border-[#333333] rounded-lg p-8 text-center">
+            <DialogContent className="sm:max-w-[520px] bg-[#1E1E1E] border-[#333333] rounded-xl max-h-[85vh] flex flex-col overflow-hidden p-0">
+              <DialogHeader className="px-6 pt-6 pb-0 flex-shrink-0"><DialogTitle className="text-white">Upload Custom Font</DialogTitle></DialogHeader>
+              <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+                <div className="border-2 border-dashed border-[#333333] rounded-lg p-6 text-center hover:border-[#555555] transition-colors">
                   <Upload className="w-8 h-8 mx-auto text-[#606060] mb-2" />
-                  <p className="text-[14px] text-[#A0A0A0] mb-3">Upload .ttf or .otf file</p>
+                  <p className="text-[14px] text-[#A0A0A0] mb-3">Upload .ttf, .otf, .woff, .woff2 files</p>
                   <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#333333] rounded-lg text-[14px] font-medium cursor-pointer hover:bg-[#444444] transition-colors text-[#A0A0A0] hover:text-white">
-                    Choose File
-                    <input type="file" accept=".ttf,.otf,.woff,.woff2" className="hidden" onChange={handleUpload} />
+                    Add Files
+                    <input type="file" accept=".ttf,.otf,.woff,.woff2" multiple className="hidden" onChange={handleFileSelect} />
                   </label>
                 </div>
+                {uploadFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">Files ({uploadFiles.length})</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {uploadFiles.map((uf) => (
+                        <div key={uf.id} className="flex items-center gap-2 p-2 bg-[#2A2A2A] rounded-lg">
+                          <span className="text-[12px] text-[#A0A0A0] flex-1 min-w-0 truncate">{uf.file.name}</span>
+                          <span className="text-[10px] text-[#505050] uppercase">{(uf.file.size / 1024).toFixed(0)}KB</span>
+                          <select value={uf.weight} onChange={(e) => setUploadFiles((prev) => prev.map((f) => f.id === uf.id ? { ...f, weight: parseInt(e.target.value) } : f))} className="bg-[#333333] border border-[#444444] text-[#A0A0A0] text-[11px] rounded px-1.5 py-1 outline-none">
+                            {WEIGHT_OPTIONS.map((wo) => <option key={wo.value} value={wo.value}>{wo.label}</option>)}
+                          </select>
+                          <button onClick={() => setUploadFiles((prev) => prev.map((f) => f.id === uf.id ? { ...f, style: f.style === "italic" ? "normal" : "italic" } : f))} className={`text-[11px] px-2 py-1 rounded transition-colors ${uf.style === "italic" ? "bg-[#FF6B35] text-white" : "bg-[#333333] text-[#606060] hover:text-[#A0A0A0]"}`}>It</button>
+                          <button onClick={() => setUploadFiles((prev) => prev.filter((f) => f.id !== uf.id))} className="p-1 rounded hover:bg-red-500/20 text-[#606060] hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <label className="text-[14px] font-medium text-[#A0A0A0]">Display Name</label>
                   <input placeholder="e.g. My Custom Font" value={uploadName} onChange={(e) => setUploadName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
@@ -1965,65 +2117,16 @@ function FontsSection() {
                   <input placeholder="e.g. MyCustomFont" value={uploadFamily} onChange={(e) => setUploadFamily(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
                 </div>
               </div>
+              <div className="px-6 py-4 border-t border-[#333333] flex-shrink-0 flex items-center justify-end gap-3">
+                <button onClick={() => setShowUpload(false)} className="px-5 py-3 bg-[#333333] hover:bg-[#444444] text-white rounded-lg text-[14px] font-medium transition-all duration-200">Cancel</button>
+                <button onClick={handleUpload} disabled={uploadFiles.length === 0 || !uploadName.trim() || !uploadFamily.trim() || uploading} className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200">
+                  {uploading ? "Uploading..." : `Upload Font${uploadFiles.length > 1 ? ` (${uploadFiles.length} files)` : ""}`}
+                </button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
-
-      {/* VARIANT SELECTION DIALOG */}
-      <Dialog open={!!configuringFont} onOpenChange={(o) => { if (!o) { setConfiguringFont(null); setSelectedVariants([]); } }}>
-        <DialogContent className="sm:max-w-[480px] bg-[#1E1E1E] border-[#333333] rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-white">Select Variants</DialogTitle>
-          </DialogHeader>
-          {configuringFont && (
-            <div className="space-y-4 mt-2">
-              <div className="flex items-center gap-3 p-3 bg-[#2A2A2A] rounded-lg">
-                <div className="w-10 h-10 rounded-lg bg-[#333333] flex items-center justify-center text-xl text-white flex-shrink-0" style={{ fontFamily: `'${configuringFont.family}', sans-serif` }}>Aa</div>
-                <div>
-                  <p className="text-[16px] font-semibold text-white">{configuringFont.family}</p>
-                  <p className="text-[12px] text-[#606060] capitalize">{configuringFont.category}</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] text-[#A0A0A0]">Choose variants to include</p>
-                <button onClick={selectAllVariants} className="text-[12px] text-[#FF6B35] hover:text-[#FF5722] font-medium transition-colors">Select All</button>
-              </div>
-              <ScrollArea className="max-h-48">
-                <div className="space-y-1">
-                  {(() => {
-                    let allV: string[] = [];
-                    try { allV = JSON.parse(configuringFont.variants); } catch {}
-                    const weightLabels: Record<number, string> = { 100: "Thin", 200: "ExtraLight", 300: "Light", 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" };
-                    return allV.map((v) => {
-                      const num = v.match(/\d+/);
-                      const w = num ? parseInt(num[0]) : 400;
-                      const isItalic = v.includes("italic");
-                      const label = `${weightLabels[w] || w}${isItalic ? " Italic" : ""} (${v})`;
-                      const checked = selectedVariants.includes(v);
-                      return (
-                        <button key={v} onClick={() => toggleVariant(v)} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${checked ? "bg-[#FF6B35]/10 border border-[#FF6B35]/30" : "hover:bg-[#2A2A2A] border border-transparent"}`}>
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-[#FF6B35] border-[#FF6B35]" : "border-[#555555]"}`}>
-                            {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                          </div>
-                          <span className={`text-[14px] ${checked ? "text-white font-medium" : "text-[#A0A0A0]"}`}>{label}</span>
-                        </button>
-                      );
-                    });
-                  })()}
-                </div>
-              </ScrollArea>
-              <p className="text-[11px] text-[#606060]">{selectedVariants.length} variant{selectedVariants.length !== 1 ? "s" : ""} selected</p>
-              <div className="flex justify-end gap-2 pt-1">
-                <button onClick={() => { setConfiguringFont(null); setSelectedVariants([]); }} className="px-4 py-2.5 bg-[#333333] text-[#A0A0A0] rounded-lg text-[14px] font-medium hover:bg-[#444444] hover:text-white transition-all">Cancel</button>
-                <button onClick={confirmAddGoogleFont} disabled={selectedVariants.length === 0} className="px-5 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all">
-                  Add Font{selectedVariants.length > 0 ? ` (${selectedVariants.length})` : ""}
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* GOOGLE FONTS BROWSER */}
       <AnimatePresence>
@@ -2095,7 +2198,7 @@ function FontsSection() {
               ) : (
                 <div>
                   {fonts.map((f) => (
-                    <button key={f.id} onClick={() => setSelectedFont(f)} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#333333]/40 last:border-b-0 ${selectedFont?.id === f.id ? "bg-[#2A2A2A]" : "hover:bg-[#2A2A2A]/60"}`}>
+                    <div key={f.id} onClick={() => { setSelectedFont(f); setPreviewVariant("all"); }} className={`group w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-[#333333]/40 last:border-b-0 cursor-pointer ${selectedFont?.id === f.id ? "bg-[#2A2A2A]" : "hover:bg-[#2A2A2A]/60"}`}>
                       <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] border border-[#333333] flex items-center justify-center text-lg flex-shrink-0 text-white" style={{ fontFamily: `'${f.family}', sans-serif` }}>Aa</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-medium truncate text-white">{f.name}</p>
@@ -2105,16 +2208,47 @@ function FontsSection() {
                           <span className="text-[10px] text-[#606060]">{(() => { try { return JSON.parse(f.variants).length; } catch { return 0; } })()} variants</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {f.source === "custom" && (() => {
+                          let vArr: { weight: number; style: string; file?: string }[] = [];
+                          try { vArr = JSON.parse(f.variants); } catch {}
+                          const hasMultipleFiles = vArr.filter((v) => v.file).length > 1;
+                          if (!hasMultipleFiles) {
+                            return (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDownloadFont(f); }} className="p-1.5 rounded hover:bg-[#333333] transition-all"><Download className="w-3.5 h-3.5 text-[#A0A0A0] hover:text-white" /></button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download Font</TooltipContent>
+                              </Tooltip>
+                            );
+                          }
+                          return (
+                            <FontDownloadDropdown font={f} variants={vArr} />
+                          );
+                        })()}
+                        {f.source === "google" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button onClick={(e) => { e.stopPropagation(); handleDownloadFont(f); }} className="p-1.5 rounded hover:bg-[#333333] transition-all"><ExternalLink className="w-3.5 h-3.5 text-[#A0A0A0] hover:text-white" /></button>
+                            </TooltipTrigger>
+                            <TooltipContent>View on Google Fonts</TooltipContent>
+                          </Tooltip>
+                        )}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={(e) => { e.stopPropagation(); handleDownloadFont(f); }} className="p-1 rounded hover:bg-[#2A2A2A] transition-all"><Download className="w-3.5 h-3.5 text-[#606060] hover:text-[#A0A0A0]" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleEditFont(f); }} className="p-1.5 rounded hover:bg-[#333333] transition-all"><Edit3 className="w-3.5 h-3.5 text-[#A0A0A0] hover:text-white" /></button>
                           </TooltipTrigger>
-                          <TooltipContent>{f.source === "google" ? "View on Google Fonts" : "Download Font"}</TooltipContent>
+                          <TooltipContent>Edit Font</TooltipContent>
                         </Tooltip>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFont(f.id); }} className="p-1 rounded hover:bg-red-500/10 transition-all"><Trash2 className="w-3 h-3 text-[#606060] hover:text-red-400" /></button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFont(f.id); }} className="p-1.5 rounded hover:bg-red-500/20 transition-all"><Trash2 className="w-3.5 h-3.5 text-[#A0A0A0] hover:text-red-400" /></button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete Font</TooltipContent>
+                        </Tooltip>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -2147,18 +2281,40 @@ function FontsSection() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
+                        <button onClick={() => handleEditFont(selectedFont)} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Edit3 className="w-4 h-4 text-[#A0A0A0]" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit Font</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <button onClick={() => handleDownloadFont(selectedFont)} className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors"><Download className="w-4 h-4 text-[#A0A0A0]" /></button>
                       </TooltipTrigger>
                       <TooltipContent>{selectedFont.source === "google" ? "View on Google Fonts" : "Download Font File"}</TooltipContent>
                     </Tooltip>
+                    <div className="w-px h-5 bg-[#333333] mx-1" />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={() => handleDeleteFont(selectedFont.id)} className="p-2 rounded-lg hover:bg-red-500/15 transition-colors"><Trash2 className="w-4 h-4 text-[#A0A0A0] hover:text-red-400" /></button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Font</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {uniqueWeights.map((w) => (
-                    <span key={w} className="inline-flex items-center px-2.5 py-1 rounded-md bg-[#2A2A2A] border border-[#333333] text-[10px] font-medium text-[#A0A0A0]">
-                      {(() => { const labels: Record<number, string> = { 100: "Thin", 200: "ExtraLight", 300: "Light", 400: "Regular", 500: "Medium", 600: "SemiBold", 700: "Bold", 800: "ExtraBold", 900: "Black" }; return labels[w] || `${w}`; })()}
-                    </span>
-                  ))}
+                  <button onClick={() => setPreviewVariant("all")} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${previewVariant === "all" ? "bg-[#FF6B35] text-white border border-[#FF6B35]" : "bg-[#2A2A2A] border border-[#333333] text-[#A0A0A0] hover:border-[#555555]"}`}>
+                    All
+                  </button>
+                  {variants.map((v) => {
+                    const key = `${v.weight}-${v.style}`;
+                    return (
+                      <button key={key} onClick={() => setPreviewVariant(key)} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${previewVariant === key ? "bg-[#FF6B35] text-white border border-[#FF6B35]" : "bg-[#2A2A2A] border border-[#333333] text-[#A0A0A0] hover:border-[#555555]"}`}>
+                        {v.label}
+                        {selectedFont.source === "custom" && (() => { try { return JSON.parse(selectedFont.variants).find((x: { weight: number; style: string; file?: string }) => `${x.weight}-${x.style}` === key)?.file; } catch { return null; } })() && (
+                          <Download className="w-2.5 h-2.5 opacity-60" onClick={(e) => { e.stopPropagation(); handleDownloadVariant(selectedFont, key); }} />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="p-4 border-b border-[#333333] flex flex-col sm:flex-row gap-3">
@@ -2173,32 +2329,56 @@ function FontsSection() {
               </div>
               <ScrollArea className="h-[calc(100vh-580px)] min-h-[250px]">
                 <div className="p-6 space-y-8">
-                  {uniqueWeights.map((w) => {
-                    const labels: Record<number, string> = { 100: "Thin", 200: "Extra Light", 300: "Light", 400: "Regular", 500: "Medium", 600: "Semi Bold", 700: "Bold", 800: "Extra Bold", 900: "Black" };
-                    const label = labels[w] || `Weight ${w}`;
-                    const hasItalic = variants.some((v) => v.weight === w && v.style === "italic");
-                    return (
-                      <div key={w}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">{label} ({w})</span>
-                          {hasItalic && <span className="text-[10px] text-[#606060]/60">· Italic available</span>}
+                  {previewVariant === "all" ? (
+                    uniqueWeights.map((w) => {
+                      const labels: Record<number, string> = { 100: "Thin", 200: "Extra Light", 300: "Light", 400: "Regular", 500: "Medium", 600: "Semi Bold", 700: "Bold", 800: "Extra Bold", 900: "Black" };
+                      const label = labels[w] || `Weight ${w}`;
+                      const hasItalic = variants.some((v) => v.weight === w && v.style === "italic");
+                      return (
+                        <div key={w}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[12px] font-medium text-[#606060] uppercase tracking-wider">{label} ({w})</span>
+                            {hasItalic && <span className="text-[10px] text-[#606060]/60">· Italic available</span>}
+                          </div>
+                          <p className="leading-tight break-words text-[#FFFFFF]/90" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: w, fontSize: `${Math.min(previewSize, 96)}px` }}>{previewText}</p>
+                          {hasItalic && <p className="leading-tight break-words text-[#FFFFFF]/70 mt-1" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: w, fontStyle: "italic", fontSize: `${Math.min(previewSize * 0.75, 72)}px` }}>{previewText}</p>}
                         </div>
-                        <p className="leading-tight break-words text-[#FFFFFF]/90" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: w, fontSize: `${Math.min(previewSize, 96)}px` }}>{previewText}</p>
-                        {hasItalic && <p className="leading-tight break-words text-[#FFFFFF]/70 mt-1" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: w, fontStyle: "italic", fontSize: `${Math.min(previewSize * 0.75, 72)}px` }}>{previewText}</p>}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  ) : (
+                    (() => {
+                      const pv = variants.find((v) => `${v.weight}-${v.style}` === previewVariant);
+                      if (!pv) return null;
+                      return (
+                        <p key={previewVariant} className="leading-tight break-words text-[#FFFFFF]/90" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: pv.weight, fontStyle: pv?.style === "italic" ? "italic" : "normal", fontSize: `${Math.min(previewSize, 96)}px` }}>{previewText}</p>
+                      );
+                    })()
+                  )}
                   <div>
                     <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">Alphabet & Numbers</p>
-                    <p className="text-2xl leading-relaxed break-words text-[#FFFFFF]/80" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: 400 }}>
-                      ABCDEFGHIJKLMNOPQRSTUVWXYZ<br />abcdefghijklmnopqrstuvwxyz<br />0123456789<br />!@#$%^&*()_+-=[]{}|;':&quot;,./&lt;&gt;?
-                    </p>
+                    {previewVariant === "all" ? (
+                      <p className="text-2xl leading-relaxed break-words text-[#FFFFFF]/80" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: 400 }}>
+                        ABCDEFGHIJKLMNOPQRSTUVWXYZ<br />abcdefghijklmnopqrstuvwxyz<br />0123456789<br />!@#$%^&*()_+-=[]{}|;':&quot;,./&lt;&gt;?
+                      </p>
+                    ) : (
+                      (() => {
+                        const pv = variants.find((v) => `${v.weight}-${v.style}` === previewVariant);
+                        return <p className="text-2xl leading-relaxed break-words text-[#FFFFFF]/80" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: pv?.weight || 400, fontStyle: pv?.style === "italic" ? "italic" : "normal" }}>ABCDEFGHIJKLMNOPQRSTUVWXYZ<br />abcdefghijklmnopqrstuvwxyz<br />0123456789</p>;
+                      })()
+                    )}
                   </div>
                   <div>
                     <p className="text-[12px] font-medium text-[#606060] uppercase tracking-wider mb-3">Paragraph</p>
-                    <p className="text-base leading-relaxed text-[#FFFFFF]/70" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: 400 }}>
-                      Typography is the art and technique of arranging type to make written language legible, readable and appealing when displayed. The arrangement of type involves selecting typefaces, point sizes, line lengths, line-spacing, and letter-spacing, and adjusting the space between pairs of letters.
-                    </p>
+                    {previewVariant === "all" ? (
+                      <p className="text-base leading-relaxed text-[#FFFFFF]/70" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: 400 }}>
+                        Typography is the art and technique of arranging type to make written language legible, readable and appealing when displayed. The arrangement of type involves selecting typefaces, point sizes, line lengths, line-spacing, and letter-spacing, and adjusting the space between pairs of letters.
+                      </p>
+                    ) : (
+                      (() => {
+                        const pv = variants.find((v) => `${v.weight}-${v.style}` === previewVariant);
+                        return <p className="text-base leading-relaxed text-[#FFFFFF]/70" style={{ fontFamily: `'${selectedFont.family}', sans-serif`, fontWeight: pv?.weight || 400, fontStyle: pv?.style === "italic" ? "italic" : "normal" }}>Typography is the art and technique of arranging type to make written language legible, readable and appealing when displayed. The arrangement of type involves selecting typefaces, point sizes, line lengths, line-spacing, and letter-spacing.</p>;
+                      })()
+                    )}
                   </div>
                 </div>
               </ScrollArea>
@@ -2206,6 +2386,27 @@ function FontsSection() {
           )}
         </div>
       </div>
+
+      {/* EDIT FONT DIALOG */}
+      <Dialog open={!!editingFont} onOpenChange={(o) => { if (!o) setEditingFont(null); }}>
+        <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader><DialogTitle className="text-white">Edit Font</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">Display Name</label>
+              <input value={editFontName} onChange={(e) => setEditFontName(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[14px] font-medium text-[#A0A0A0]">CSS Font Family</label>
+              <input value={editFontFamily} onChange={(e) => setEditFontFamily(e.target.value)} className="w-full px-4 py-3 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <button onClick={() => setEditingFont(null)} className="px-5 py-3 bg-[#333333] hover:bg-[#444444] text-white rounded-lg text-[14px] font-medium transition-all duration-200">Cancel</button>
+            <button onClick={saveEditFont} disabled={!editFontName.trim() || !editFontFamily.trim()} className="px-5 py-3 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200">Save Changes</button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -275,3 +275,78 @@ Stage Summary:
 - Colors and gradients have easy copy buttons
 - Logos and PDFs have easy download buttons
 - All changes backward-compatible (existing orphan assets show profileId: null)
+
+---
+Task ID: 2
+Agent: Main
+Date: 2025-07-12T00:00:00Z
+Summary: Re-applied lost Fonts section changes after git reset --hard
+
+Changes applied to `/home/z/my-project/src/app/page.tsx` (FontsSection):
+
+1. **Added `UploadFileItem` interface** (after FontVariant interface ~line 120)
+   - Supports multi-file upload with weight, style (normal/italic), and unique id
+
+2. **Added `FontDownloadDropdown` component** (before FontsSection function)
+   - Standalone component for per-variant download dropdown on custom fonts with multiple files
+   - Shows weight labels, file extensions, click-outside-to-close behavior
+
+3. **Replaced state declarations** in FontsSection
+   - Removed: `configuringFont`, `selectedVariants` (no longer needed without variant selection dialog)
+   - Added: `editingFont`, `editFontName`, `editFontFamily`, `previewVariant`, `uploadFiles`, `uploading`
+
+4. **Updated custom font @font-face loading** (useEffect)
+   - Now parses variants JSON to handle multi-variant fonts with individual file paths
+   - Generates separate @font-face rules for each variant with correct format detection
+   - Falls back to single-file loading for legacy fonts
+
+5. **Replaced `addGoogleFont`** — now directly saves without variant selection dialog
+   - Removed: `toggleVariant`, `selectAllVariants`, `confirmAddGoogleFont` functions
+
+6. **Replaced `handleUpload` with multi-file upload**
+   - Added `WEIGHT_OPTIONS` constant, `detectWeightFromName()`, `detectStyleFromName()` helpers
+   - Added `handleFileSelect()` for multi-file input with auto-detection of weight/style from filename
+   - New `handleUpload()` sends all files as `fonts[]` with variant metadata
+   - Auto-loads newly uploaded font's @font-face rules
+
+7. **Fixed `handleDownloadFont`** — now uses correct file extension from filePath
+   - Added `handleDownloadVariant()` for per-variant download of custom fonts
+
+8. **Added `handleEditFont` and `saveEditFont`** — edit font name and CSS family via PUT API
+
+9. **Updated `parseVariants`** — handles both old string format (`"regular"`, `"700italic"`) and new object format (`{weight: 400, style: "normal", file: "..."}`)
+
+10. **Replaced Upload Dialog** with multi-file version
+    - Supports multiple file selection, file list with weight selectors, italic toggle, file size display
+    - Auto-detects font name from filename
+    - Cancel/Upload buttons with file count indicator
+
+11. **Removed the VARIANT SELECTION DIALOG** entirely (Google font variant picker)
+
+12. **Replaced font list items** with group hover behavior
+    - Action buttons (download/edit/delete) only appear on hover (opacity transition)
+    - Custom fonts with multiple files show `FontDownloadDropdown`; single file shows simple download button
+    - Google fonts show ExternalLink icon instead of download
+    - Edit and Delete buttons always available on hover with proper sizing (3.5h/3.5w) and colors (#A0A0A0)
+
+13. **Replaced font detail panel header** with Edit and Delete buttons
+    - Added Edit button (Edit3 icon) and Delete button (Trash2 icon with hover:red-400)
+    - Separator line between action groups
+
+14. **Added variant selector pills** replacing static weight badges
+    - Clickable "All" pill + individual variant pills with active state (bg-[#FF6B35])
+    - Custom font variants with files show small download icon on the pill
+    - `previewVariant` state controls which variant is shown
+
+15. **Updated preview content** to respect variant filter
+    - "All" mode: shows all weights with italic variants (original behavior)
+    - Single variant mode: shows only the selected weight/style
+    - Alphabet & Numbers and Paragraph sections also respect the filter
+
+16. **Added Edit Font dialog** (before closing of FontsSection)
+    - Edit display name and CSS font family
+    - Cancel and Save Changes buttons
+    - Updates font list and detail panel on save
+
+Lint check: `npx eslint src/app/page.tsx` — passed with no errors.
+TypeScript check: All errors are pre-existing in other files, none in page.tsx.
