@@ -329,6 +329,9 @@ function ResourcesSection() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<Resource | null>(null);
+  const [showTagManager, setShowTagManager] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [addingTag, setAddingTag] = useState(false);
   const [formTitle, setFormTitle] = useState("");
   const [formUrl, setFormUrl] = useState("");
   const [formDesc, setFormDesc] = useState("");
@@ -365,14 +368,16 @@ function ResourcesSection() {
     fetchResources();
   }, [fetchResources]);
 
-  // Also fetch all tags (unfiltered) to show all available tags
+  // Fetch all tags from the tags API (merges standalone + resource tags)
   const [globalTags, setGlobalTags] = useState<string[]>([]);
-  useEffect(() => {
-    fetch("/api/resources")
-      .then(r => r.json())
-      .then(d => setGlobalTags(d.allTags || []))
-      .catch(() => {});
+  const fetchTags = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tags");
+      const d = await res.json();
+      setGlobalTags(d.tags || []);
+    } catch {}
   }, []);
+  useEffect(() => { fetchTags(); }, [fetchTags]);
 
   const handleSubmit = async () => {
     if (!formTitle.trim() || !formUrl.trim()) {
@@ -400,6 +405,7 @@ function ResourcesSection() {
       setDialogOpen(false);
       resetForm();
       fetchResources();
+      fetchTags();
     } catch {
       toast.error("Failed to save resource");
     }
@@ -436,6 +442,38 @@ function ResourcesSection() {
 
   const openAdd = () => { setEditItem(null); resetForm(); setDialogOpen(true); };
   const resetForm = () => { setEditItem(null); setFormTitle(""); setFormUrl(""); setFormDesc(""); setFormCategory("General"); setFormTags(""); };
+
+  const handleAddTag = async () => {
+    const name = newTagName.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "");
+    if (!name) return;
+    if (globalTags.includes(name)) { toast.error("Tag already exists"); return; }
+    setAddingTag(true);
+    try {
+      const res = await fetch("/api/tags", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tag: name }) });
+      if (res.ok) {
+        setGlobalTags((prev) => [...prev, name].sort());
+        setNewTagName("");
+        toast.success(`Tag "${name}" added`);
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Failed to add tag");
+      }
+    } catch { toast.error("Failed to add tag"); } finally { setAddingTag(false); }
+  };
+
+  const handleDeleteTag = async (tag: string) => {
+    try {
+      const res = await fetch(`/api/tags?tag=${encodeURIComponent(tag)}`, { method: "DELETE" });
+      if (res.ok) {
+        setGlobalTags((prev) => prev.filter((t) => t !== tag));
+        if (activeTag === tag) setActiveTag(null);
+        toast.success(`Tag "${tag}" deleted`);
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Failed to delete tag");
+      }
+    } catch { toast.error("Failed to delete tag"); }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -523,7 +561,7 @@ function ResourcesSection() {
 
       {/* TAG FILTERS */}
       {globalTags.length > 0 && (
-        <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {globalTags.map((tag) => (
             <button key={tag} onClick={() => { setActiveTag(activeTag === tag ? null : tag); }} className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-200 ${activeTag === tag ? "bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/40" : "bg-[#2A2A2A] text-[#606060] border border-[#333333] hover:text-[#A0A0A0] hover:border-[#444444]"}`}>
               <Tag className="w-3 h-3" />{tag}
@@ -531,6 +569,11 @@ function ResourcesSection() {
           ))}
         </div>
       )}
+      <div className="mb-6">
+        <button onClick={() => setShowTagManager(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200 bg-transparent text-[#505050] hover:text-[#A0A0A0] hover:bg-[#1A1A1A] border border-transparent hover:border-[#333333]">
+          <Settings2 className="w-3 h-3" />Manage Tags
+        </button>
+      </div>
 
       {/* ACTIVE TAG INDICATOR */}
       {activeTag && (
@@ -646,6 +689,33 @@ function ResourcesSection() {
                 </div>
               ))}
               {catList.length === 0 && <p className="text-center text-[14px] text-[#606060] py-6">No categories yet</p>}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MANAGE TAGS DIALOG */}
+      <Dialog open={showTagManager} onOpenChange={(o) => { setShowTagManager(o); if (!o) setNewTagName(""); }}>
+        <DialogContent className="sm:max-w-[420px] bg-[#1E1E1E] border-[#333333] rounded-xl">
+          <DialogHeader><DialogTitle className="text-white">Manage Tags</DialogTitle></DialogHeader>
+          <div className="mt-2 space-y-4">
+            <div className="flex gap-2">
+              <input placeholder="New tag name..." value={newTagName} onChange={(e) => setNewTagName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddTag()} className="flex-1 px-4 py-2.5 bg-[#2A2A2A] border border-[#333333] rounded-lg text-[14px] text-white placeholder:text-[#606060] outline-none focus:border-[#FF6B35] transition-colors duration-200" />
+              <button onClick={handleAddTag} disabled={!newTagName.trim() || addingTag} className="px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF5722] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-[14px] font-semibold transition-all duration-200">{addingTag ? "..." : "Add"}</button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {globalTags.length === 0 && <p className="text-center text-[14px] text-[#606060] py-6">No tags yet</p>}
+              {globalTags.map((tag) => (
+                <div key={tag} className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#2A2A2A] transition-colors group">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Tag className="w-3.5 h-3.5 text-[#606060] flex-shrink-0" />
+                    <span className="text-[14px] text-white truncate">{tag}</span>
+                  </div>
+                  <button onClick={() => handleDeleteTag(tag)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/10 text-[#606060] hover:text-red-400 transition-all duration-200" title="Delete tag">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </DialogContent>

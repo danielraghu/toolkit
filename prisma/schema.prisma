@@ -62,3 +62,9 @@ model BrandAsset {
   profileId String?
   profile   BrandProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 }
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
